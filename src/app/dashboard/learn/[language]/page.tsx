@@ -16,6 +16,7 @@ import {
   FillBlankQuestion,
   isLanguageId,
   LanguageId,
+  LearningModule,
   Lesson,
   MultipleChoiceQuestion,
   Question,
@@ -34,8 +35,8 @@ export default function LessonPage() {
   const params = useParams<{ language: string }>();
   const searchParams = useSearchParams();
   const requestedLessonId = searchParams.get("lesson");
-  const xp = useUserStore((state) => state.xp);
   const completedLessons = useUserStore((state) => state.completedLessons);
+  const lessonScores = useUserStore((state) => state.lessonScores);
 
   const language: LanguageId = isLanguageId(params.language) ? params.language : defaultLanguage;
 
@@ -51,13 +52,24 @@ export default function LessonPage() {
     ([, lessonId]) => fetchLessonById(lessonId),
   );
 
-  const unlockedModuleIds = useMemo(
-    () =>
-      (modules ?? [])
-        .filter((moduleItem) => moduleItem.requiredXp <= xp)
-        .map((moduleItem) => moduleItem.id),
-    [modules, xp],
-  );
+  // A module unlocks when the PREVIOUS module has at least one lesson scored >= 60% (3/5).
+  const unlockedModuleIds = useMemo(() => {
+    const sortedModules = modules ?? [];
+    if (!sortedModules.length) return [];
+    const unlocked: string[] = [sortedModules[0].id]; // first module always open
+    for (let i = 1; i < sortedModules.length; i++) {
+      const prev = sortedModules[i - 1];
+      const prevPassed = prev.lessonIds.some(
+        (lid) => (lessonScores[lid] ?? 0) >= 60,
+      );
+      if (prevPassed) {
+        unlocked.push(sortedModules[i].id);
+      } else {
+        break;
+      }
+    }
+    return unlocked;
+  }, [modules, lessonScores]);
 
   const lesson = useMemo(() => {
     if (!lessons?.length) {
@@ -99,8 +111,10 @@ export default function LessonPage() {
 
   return (
     <LessonRunner
+      key={lesson.id}
       lesson={lesson}
-      modules={modules ?? []}
+      allLessons={lessons ?? []}
+      allModules={modules ?? []}
       unlockedModules={unlockedModuleIds.length}
     />
   );
@@ -108,23 +122,55 @@ export default function LessonPage() {
 
 function LessonRunner({
   lesson,
-  modules,
+  allLessons,
+  allModules,
   unlockedModules,
 }: {
   lesson: Lesson;
-  modules: {
-    id: string;
-    title: string;
-    requiredXp: number;
-  }[];
+  allLessons: Lesson[];
+  allModules: LearningModule[];
   unlockedModules: number;
 }) {
+  const frozenLesson = useMemo(() => lesson, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [questionIndex, setQuestionIndex] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [answeredCorrectly, setAnsweredCorrectly] = useState(0);
   const [answer, setAnswer] = useState<AnswerState>({ assembly: [] });
   const [lessonDone, setLessonDone] = useState(false);
+  const [finalScore, setFinalScore] = useState<{ correct: number; total: number } | null>(null);
+
+  // Read scores/completed directly so nextLesson updates after completeLesson fires.
+  const lessonScores = useUserStore((state) => state.lessonScores);
+  const completedLessonsStore = useUserStore((state) => state.completedLessons);
+
+  const internalUnlockedIds = useMemo(() => {
+    if (!allModules.length) return [];
+    const unlocked: string[] = [allModules[0].id];
+    for (let i = 1; i < allModules.length; i++) {
+      const prev = allModules[i - 1];
+      const passed = prev.lessonIds.some((lid) => completedLessonsStore.includes(lid));
+      if (passed) unlocked.push(allModules[i].id);
+      else break;
+    }
+    return unlocked;
+  }, [allModules, completedLessonsStore]);
+
+  const nextLesson = useMemo(() => {
+    if (!allLessons.length || !allModules.length) return null;
+    const nextInModule = allLessons.find(
+      (l) => l.moduleId === frozenLesson.moduleId && l.id !== frozenLesson.id && !completedLessonsStore.includes(l.id),
+    );
+    if (nextInModule) return nextInModule;
+    const curIdx = allModules.findIndex((m) => m.id === frozenLesson.moduleId);
+    if (curIdx >= 0 && curIdx < allModules.length - 1) {
+      const nextMod = allModules[curIdx + 1];
+      if (internalUnlockedIds.includes(nextMod.id)) {
+        return allLessons.find((l) => l.moduleId === nextMod.id) ?? null;
+      }
+    }
+    return null;
+  }, [allLessons, allModules, completedLessonsStore, frozenLesson, internalUnlockedIds]);
 
   const completeLesson = useUserStore((state) => state.completeLesson);
 
@@ -164,7 +210,8 @@ function LessonRunner({
       return;
     }
 
-    const projectedCorrect = answeredCorrectly + Number(isCorrect);
+    // answeredCorrectly is already incremented by submitCurrentAnswer; don't add isCorrect again.
+    const projectedCorrect = answeredCorrectly;
     const score = Math.round((projectedCorrect / lesson.questions.length) * 100);
 
     completeLesson({
@@ -173,6 +220,7 @@ function LessonRunner({
       xpReward: lesson.xpReward,
       coinReward: lesson.coinReward,
     });
+    setFinalScore({ correct: projectedCorrect, total: lesson.questions.length });
     setLessonDone(true);
   };
 
@@ -188,14 +236,14 @@ function LessonRunner({
           <div className="text-right text-sm text-slate-300">
             <p>{lesson.questions.length} questions</p>
             <p>
-              {unlockedModules}/{modules.length} modules unlocked
+              {unlockedModules}/{allModules.length} modules unlocked
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {modules.map((moduleItem) => {
-            const isUnlocked = moduleItem.requiredXp <= useUserStore.getState().xp;
+          {allModules.map((moduleItem) => {
+            const isUnlocked = internalUnlockedIds.includes(moduleItem.id);
             return (
               <span
                 key={moduleItem.id}
@@ -320,26 +368,58 @@ function LessonRunner({
         )}
       </AnimatePresence>
 
-      {lessonDone && (
+      {lessonDone && finalScore && (
         <section className="glass-panel rounded-2xl p-6 border-slate-700/70 text-center">
           <p className="text-xs uppercase tracking-[0.2em] text-cyan-300 mb-2">Lesson complete</p>
-          <h2 className="text-3xl font-black text-white mb-2">Excellent run.</h2>
-          <p className="text-slate-300 mb-5">
-            You earned +{lesson.xpReward} XP and +{lesson.coinReward} Coins for finishing this lesson.
-          </p>
-          <div className="flex flex-wrap justify-center gap-3">
-            <Link
-              href={`/dashboard/learn/${lesson.languageId}`}
-              className="px-5 py-3 rounded-xl border border-slate-700 text-slate-200 hover:bg-slate-800 transition-colors"
+          <h2 className="text-3xl font-black text-white mb-3">
+            {finalScore.correct >= Math.ceil(finalScore.total * 0.6) ? "Excellent run!" : "Good effort!"}
+          </h2>
+
+          {/* Score display */}
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <span
+              className={`text-5xl font-black ${
+                finalScore.correct >= Math.ceil(finalScore.total * 0.6)
+                  ? "text-emerald-400"
+                  : "text-amber-400"
+              }`}
             >
-              Replay Lesson
-            </Link>
+              {finalScore.correct}/{finalScore.total}
+            </span>
+            <span className="text-slate-400 text-sm leading-tight">
+              correct<br />answers
+            </span>
+          </div>
+
+          <p className="text-slate-300 mb-1">
+            You earned +{lesson.xpReward} XP and +{lesson.coinReward} Coins.
+          </p>
+          {nextLesson && nextLesson.moduleId !== lesson.moduleId && (
+            <p className="text-cyan-300 text-sm mb-5">🔓 Next module unlocked!</p>
+          )}
+          {!nextLesson && (
+            <p className="text-slate-400 text-sm mb-5">You&apos;ve reached the end of this path.</p>
+          )}
+          {nextLesson && nextLesson.moduleId === lesson.moduleId && (
+            <p className="text-slate-400 text-sm mb-5">Ready for the next lesson?</p>
+          )}
+
+          <div className="flex flex-wrap justify-center gap-3 mt-4">
             <Link
               href="/dashboard"
-              className="px-5 py-3 rounded-xl bg-cyan-500 text-slate-950 font-extrabold hover:bg-cyan-400 transition-colors"
+              className="px-5 py-3 rounded-xl border border-slate-700 text-slate-200 hover:bg-slate-800 transition-colors"
             >
               Back to Dashboard
             </Link>
+            {nextLesson && (
+              <Link
+                href={`/dashboard/learn/${nextLesson.languageId}?lesson=${nextLesson.id}`}
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-cyan-500 text-slate-950 font-extrabold hover:bg-cyan-400 transition-colors"
+              >
+                Continue
+                <ArrowRight size={16} />
+              </Link>
+            )}
           </div>
         </section>
       )}

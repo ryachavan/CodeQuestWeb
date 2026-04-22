@@ -177,7 +177,7 @@ export const useUserStore = create<UserState>()(
               ...current.lessonScores,
               [lessonId]: Math.max(safeScore, current.lessonScores[lessonId] ?? 0),
             },
-            completedLessons: alreadyCompleted
+            completedLessons: (alreadyCompleted || safeScore < 60)
               ? current.completedLessons
               : [...current.completedLessons, lessonId],
             dailyStats: shouldResetDaily
@@ -197,13 +197,16 @@ export const useUserStore = create<UserState>()(
 
         const state = get();
         if (state.isAuthenticated && state.id !== "demo-user") {
-          import("@/lib/supabaseClient").then(({ createClient }) => {
-            const supabase = createClient();
-            supabase.from("user_progress").upsert({ 
-              user_id: state.id, 
-              lesson_id: lessonId 
-            }, { onConflict: 'user_id, lesson_id' }).then();
-          });
+          const passed = safeScore >= 60;
+          if (passed) {
+            import("@/lib/supabaseClient").then(({ createClient }) => {
+              const supabase = createClient();
+              supabase.from("user_progress").upsert({ 
+                user_id: state.id, 
+                lesson_id: lessonId 
+              }, { onConflict: 'user_id, lesson_id' }).then();
+            });
+          }
         }
       },
       setTheme: (themeId) => {
