@@ -39,12 +39,12 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       <section className="glass-panel rounded-3xl p-6 md:p-8 border-slate-700/70 relative overflow-hidden">
-        <div className="absolute -top-24 -right-10 w-64 h-64 rounded-full bg-cyan-400/10 blur-3xl" />
-        <div className="absolute -bottom-32 left-12 w-64 h-64 rounded-full bg-green-400/10 blur-3xl" />
+        <div className="absolute -top-24 -right-10 w-64 h-64 rounded-full accent-bg blur-3xl opacity-20" />
+        <div className="absolute -bottom-32 left-12 w-64 h-64 rounded-full bg-emerald-400/10 blur-3xl" />
 
         <div className="relative z-10 grid md:grid-cols-[2fr_1fr] gap-8">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-cyan-300 mb-2">Daily Control Deck</p>
+            <p className="text-xs uppercase tracking-[0.2em] accent-text mb-2">Daily Control Deck</p>
             <h1 className="text-3xl md:text-4xl font-black text-white leading-tight mb-3">
               Keep your coding streak alive and unlock your next quest.
             </h1>
@@ -56,7 +56,7 @@ export default function Dashboard() {
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
                 href="/dashboard/quests"
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-cyan-500 text-slate-950 font-extrabold shadow-[0_0_20px_rgba(6,182,212,0.35)] hover:bg-cyan-400 transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl theme-button shadow-[0_0_20px_var(--theme-glow)]"
               >
                 <Sparkles size={16} />
                 View Daily Quests
@@ -72,7 +72,7 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <StatTile label="Level" value={String(level)} accent="text-cyan-300" />
+            <StatTile label="Level" value={String(level)} accent="accent-text" />
             <StatTile label="Streak" value={`${streak}d`} accent="text-orange-300" />
             <StatTile label="XP" value={String(xp)} accent="text-blue-300" />
             <StatTile
@@ -87,6 +87,9 @@ export default function Dashboard() {
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-black text-white">Language Paths</h2>
+          <Link href="/dashboard/leaderboard" className="text-sm accent-text hover:opacity-80">
+            Leaderboard
+          </Link>
         </div>
 
         {langsLoading && (
@@ -131,7 +134,7 @@ export default function Dashboard() {
                     <p className="text-slate-300 text-sm mb-4">{lang.tagline}</p>
                     <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-cyan-400 transition-all"
+                        className="h-full rounded-full accent-bg transition-all"
                         style={{ width: `${completionRate}%` }}
                       />
                     </div>
@@ -177,7 +180,7 @@ function DailySnapshot() {
     <article className="glass-panel rounded-2xl p-5 border-slate-700/70">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-black text-white">Today&apos;s Momentum</h3>
-        <Target size={18} className="text-cyan-300" />
+        <Target size={18} className="accent-text" />
       </div>
       <div className="grid sm:grid-cols-3 gap-3 mb-5">
         <Metric label="Lessons" value={String(dailyStats.lessonsCompleted)} />
@@ -225,7 +228,7 @@ function RecommendedCard() {
 
   return (
     <article className="glass-panel rounded-2xl p-5 border-slate-700/70">
-      <p className="text-xs uppercase tracking-[0.2em] text-cyan-300 mb-2">Recommended Next</p>
+      <p className="text-xs uppercase tracking-[0.2em] accent-text mb-2">Recommended Next</p>
       <h3 className="text-xl font-black text-white mb-1">{lesson.title}</h3>
       <p className="text-slate-300 text-sm mb-4">{lesson.description}</p>
       <div className="text-sm text-slate-300 space-y-1 mb-4">
@@ -235,7 +238,7 @@ function RecommendedCard() {
       </div>
       <Link
         href={`/dashboard/learn/${lesson.languageId}?lesson=${lesson.id}`}
-        className="inline-flex w-full justify-center rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold py-3 transition-colors"
+        className="inline-flex w-full justify-center rounded-xl theme-button py-3 transition-colors"
       >
         Start Lesson
       </Link>
