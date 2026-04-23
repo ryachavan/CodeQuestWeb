@@ -1,4 +1,4 @@
-import { AvatarId, ThemeId } from "@/lib/types";
+import { AvatarId, ThemeId, isThemeId, isAvatarId } from "@/lib/types";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -123,9 +123,6 @@ export const useUserStore = create<UserState>()(
         if (!canSpend) {
           return false;
         }
-        if (!canSpend) {
-          return false;
-        }
         set((state) => ({ coins: state.coins - safeAmount }));
         get().saveToSupabase();
         return true;
@@ -200,12 +197,20 @@ export const useUserStore = create<UserState>()(
           const passed = safeScore >= 60;
           if (passed) {
             import("@/lib/supabaseClient").then(({ createClient }) => {
-              const supabase = createClient();
-              supabase.from("user_progress").upsert({ 
-                user_id: state.id, 
-                lesson_id: lessonId 
-              }, { onConflict: 'user_id, lesson_id' }).then();
-            });
+              try {
+                const supabase = createClient();
+                supabase.from("user_progress").upsert({ 
+                  user_id: state.id, 
+                  lesson_id: lessonId 
+                }, { onConflict: 'user_id, lesson_id' }).then(({ error }) => {
+                  if (error) {
+                    console.error("Failed to save lesson progress:", error);
+                  }
+                });
+              } catch (error) {
+                console.error("Failed to update user progress:", error);
+              }
+            }).catch(err => console.error("Failed to import Supabase client:", err));
           }
         }
       },
@@ -235,11 +240,19 @@ export const useUserStore = create<UserState>()(
         // Persist to user_themes
         if (state.isAuthenticated && state.id !== "demo-user") {
           import("@/lib/supabaseClient").then(({ createClient }) => {
-            const supabase = createClient();
-            supabase.from("user_themes").insert({ user_id: state.id, theme_id: themeId }).then(() => {
-              get().saveToSupabase();
-            });
-          });
+            try {
+              const supabase = createClient();
+              supabase.from("user_themes").insert({ user_id: state.id, theme_id: themeId }).then(({ error }) => {
+                if (error) {
+                  console.error("Failed to unlock theme:", error);
+                } else {
+                  get().saveToSupabase();
+                }
+              });
+            } catch (error) {
+              console.error("Failed to save theme unlock:", error);
+            }
+          }).catch(err => console.error("Failed to import Supabase client:", err));
         }
 
         return true;
@@ -272,64 +285,92 @@ export const useUserStore = create<UserState>()(
         // Persist to user_avatars
         if (state.isAuthenticated && state.id !== "demo-user") {
           import("@/lib/supabaseClient").then(({ createClient }) => {
-            const supabase = createClient();
-            supabase.from("user_avatars").insert({ user_id: state.id, avatar_id: avatarId }).then(() => {
-              get().saveToSupabase();
-            });
-          });
+            try {
+              const supabase = createClient();
+              supabase.from("user_avatars").insert({ user_id: state.id, avatar_id: avatarId }).then(({ error }) => {
+                if (error) {
+                  console.error("Failed to unlock avatar:", error);
+                } else {
+                  get().saveToSupabase();
+                }
+              });
+            } catch (error) {
+              console.error("Failed to save avatar unlock:", error);
+            }
+          }).catch(err => console.error("Failed to import Supabase client:", err));
         }
 
         return true;
       },
       syncWithSupabase: async () => {
-        const { createClient } = await import("@/lib/supabaseClient");
-        const supabase = await createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) return;
-
-        const { data: profile } = await supabase
-          .from("user_profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-
-        if (profile) {
-          const { data: themes } = await supabase.from("user_themes").select("theme_id").eq("user_id", user.id);
-          const { data: avatars } = await supabase.from("user_avatars").select("avatar_id").eq("user_id", user.id);
-          const { data: progress } = await supabase.from("user_progress").select("lesson_id").eq("user_id", user.id);
+        try {
+          const { createClient } = await import("@/lib/supabaseClient");
+          const supabase = await createClient();
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
           
-          set({
-            id: user.id,
-            username: profile.username,
-            email: user.email || null,
-            isAuthenticated: true,
-            xp: profile.xp || 0,
-            coins: profile.coins || 0,
-            streak: profile.streak || 0,
-            selectedTheme: profile.theme_id as ThemeId,
-            selectedAvatar: profile.avatar_id as AvatarId,
-            ownedThemes: themes?.map(t => t.theme_id as ThemeId) || ["neon-cyan"],
-            ownedAvatars: avatars?.map(a => a.avatar_id as AvatarId) || ["pixel-bot"],
-            completedLessons: progress?.map(p => p.lesson_id) || [],
-          });
+          if (userError) throw userError;
+          if (!user) return;
+
+          const { data: profile, error: profileError } = await supabase
+            .from("user_profiles")
+            .select("*")
+            .eq("id", user.id)
+            .single();
+
+          if (profileError && profileError.code !== 'PGRST116') throw profileError;
+
+          if (profile) {
+            const { data: themes, error: themesError } = await supabase.from("user_themes").select("theme_id").eq("user_id", user.id);
+            const { data: avatars, error: avatarsError } = await supabase.from("user_avatars").select("avatar_id").eq("user_id", user.id);
+            const { data: progress, error: progressError } = await supabase.from("user_progress").select("lesson_id").eq("user_id", user.id);
+            
+            if (themesError) throw themesError;
+            if (avatarsError) throw avatarsError;
+            if (progressError) throw progressError;
+            
+            const validTheme = isThemeId(profile.theme_id) ? profile.theme_id : "neon-cyan";
+            const validAvatar = isAvatarId(profile.avatar_id) ? profile.avatar_id : "pixel-bot";
+            
+            set({
+              id: user.id,
+              username: profile.username,
+              email: user.email || null,
+              isAuthenticated: true,
+              xp: profile.xp || 0,
+              coins: profile.coins || 0,
+              streak: profile.streak || 0,
+              selectedTheme: validTheme,
+              selectedAvatar: validAvatar,
+              ownedThemes: themes?.map((t: any) => isThemeId(t.theme_id) ? t.theme_id : "neon-cyan").filter((id: ThemeId) => id) || ["neon-cyan"],
+              ownedAvatars: avatars?.map((a: any) => isAvatarId(a.avatar_id) ? a.avatar_id : "pixel-bot").filter((id: AvatarId) => id) || ["pixel-bot"],
+              completedLessons: progress?.map((p: any) => p.lesson_id) || [],
+            });
+          }
+        } catch (error) {
+          console.error("Failed to sync with Supabase:", error);
         }
       },
       saveToSupabase: async () => {
-        const state = get();
-        if (!state.isAuthenticated || state.id === "demo-user") return;
+        try {
+          const state = get();
+          if (!state.isAuthenticated || state.id === "demo-user") return;
 
-        const { createClient } = await import("@/lib/supabaseClient");
-        const supabase = await createClient();
-        
-        await supabase.from("user_profiles").update({
-          username: state.username,
-          xp: state.xp,
-          coins: state.coins,
-          streak: state.streak,
-          theme_id: state.selectedTheme,
-          avatar_id: state.selectedAvatar,
-        }).eq("id", state.id);
+          const { createClient } = await import("@/lib/supabaseClient");
+          const supabase = await createClient();
+          
+          const { error } = await supabase.from("user_profiles").update({
+            username: state.username,
+            xp: state.xp,
+            coins: state.coins,
+            streak: state.streak,
+            theme_id: state.selectedTheme,
+            avatar_id: state.selectedAvatar,
+          }).eq("id", state.id);
+          
+          if (error) throw error;
+        } catch (error) {
+          console.error("Failed to save user profile to Supabase:", error);
+        }
       },
     }),
     {

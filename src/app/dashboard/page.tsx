@@ -87,9 +87,6 @@ export default function Dashboard() {
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-black text-white">Language Paths</h2>
-          <Link href="/dashboard/leaderboard" className="text-sm text-cyan-300 hover:text-cyan-200">
-            Leaderboard
-          </Link>
         </div>
 
         {langsLoading && (

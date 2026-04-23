@@ -10,27 +10,43 @@ export default function AuthSync() {
 
   useEffect(() => {
     const initSync = async () => {
-      const supabase = await createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        await syncWithSupabase();
+      try {
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+          await syncWithSupabase();
+        }
+      } catch (error) {
+        console.error("Failed to sync with Supabase:", error);
       }
     };
 
     initSync();
 
-    const supabase = createClient();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === "SIGNED_IN" && session) {
-          await syncWithSupabase();
+    let subscription;
+    try {
+      const supabase = createClient();
+      const { data } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          if (event === "SIGNED_IN" && session) {
+            try {
+              await syncWithSupabase();
+            } catch (error) {
+              console.error("Failed to sync on auth state change:", error);
+            }
+          }
         }
-      }
-    );
+      );
+      subscription = data;
+    } catch (error) {
+      console.error("Failed to set up auth listener:", error);
+    }
 
     return () => {
-      subscription.unsubscribe();
+      if (subscription) {
+        subscription.unsubscribe();
+      }
     };
   }, [syncWithSupabase]);
 

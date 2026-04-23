@@ -35,7 +35,11 @@ export async function proxy(request: NextRequest) {
   );
 
   // refreshing the auth token
-  await supabase.auth.getUser();
+  try {
+    await supabase.auth.getUser();
+  } catch (error) {
+    console.error("Failed to refresh auth token:", error);
+  }
 
   return supabaseResponse;
 }

@@ -19,14 +19,20 @@ export default function LeaderboardPage() {
     // Filter out current user from remote data to avoid duplicates
     const filtered = data.filter(entry => entry.id !== userId);
     
+    // Get current user's avatar with fallback
+    const userAvatarId = useUserStore.getState().selectedAvatar || "pixel-bot";
+    
+    // Ensure we have a display name for current user
+    const displayName = username && username.trim() ? username : "You";
+    
     return [
       ...filtered,
       {
         id: userId || "current-user",
-        name: username,
-        xp,
-        streak,
-        avatarId: useUserStore.getState().selectedAvatar,
+        name: displayName,
+        xp: xp || 0,
+        streak: streak || 0,
+        avatarId: userAvatarId,
       },
     ]
       .sort((a, b) => b.xp - a.xp)
@@ -69,14 +75,17 @@ export default function LeaderboardPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-lg bg-slate-800/80 w-8 h-8 rounded-full flex items-center justify-center border border-slate-700/50">
-                    {{
-                      "pixel-bot": "🤖",
-                      "fox-coder": "🦊",
-                      "orb-wizard": "🔮"
-                    }[entry.avatarId] || "🤖"}
+                    {(() => {
+                      const emojiMap: Record<string, string> = {
+                        "pixel-bot": "🤖",
+                        "fox-coder": "🦊",
+                        "orb-wizard": "🔮"
+                      };
+                      return emojiMap[entry.avatarId] || "🤖";
+                    })()}
                   </span>
                   <p className={`font-bold ${isCurrentUser ? "text-cyan-200" : "text-white"}`}>
-                    {entry.name}
+                    {entry.name || "Unknown User"}
                   </p>
                 </div>
                 <p className="text-right font-semibold text-slate-100">{entry.xp}</p>

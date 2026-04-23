@@ -19,18 +19,24 @@ export default function ThemeSync() {
         const lastStartTime = localStorage.getItem("dev_server_start");
         if (lastStartTime !== serverStartTime) {
           (async () => {
-            localStorage.clear();
-            sessionStorage.clear();
-            localStorage.setItem("dev_server_start", serverStartTime);
-            
-            const { supabase } = await import("@/lib/supabaseClient");
-            if (supabase) {
-              await supabase.auth.signOut();
+            try {
+              localStorage.clear();
+              sessionStorage.clear();
+              localStorage.setItem("dev_server_start", serverStartTime);
+              
+              const { createClient } = await import("@/lib/supabaseClient");
+              const supabase = createClient();
+              if (supabase) {
+                await supabase.auth.signOut();
+              }
+              
+              useUserStore.getState().logout();
+            } catch (error) {
+              console.error("Failed to clear dev state:", error);
+            } finally {
+              window.location.reload();
             }
-            
-            useUserStore.getState().logout();
-            window.location.reload();
-          })();
+          });
         }
       }
     }

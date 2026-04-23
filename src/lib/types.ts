@@ -11,7 +11,17 @@ export type QuestionType = "multiple_choice" | "code_assembly" | "fill_blank";
 
 export type ThemeId = "neon-cyan" | "solar-flare" | "matrix-green";
 
+export const themeIds: ThemeId[] = ["neon-cyan", "solar-flare", "matrix-green"];
+
+export const isThemeId = (value: string): value is ThemeId =>
+  themeIds.includes(value as ThemeId);
+
 export type AvatarId = "pixel-bot" | "fox-coder" | "orb-wizard";
+
+export const avatarIds: AvatarId[] = ["pixel-bot", "fox-coder", "orb-wizard"];
+
+export const isAvatarId = (value: string): value is AvatarId =>
+  avatarIds.includes(value as AvatarId);
 
 export interface Language {
   id: LanguageId;

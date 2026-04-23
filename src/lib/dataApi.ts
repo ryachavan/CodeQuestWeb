@@ -2,171 +2,243 @@ import { Language, LanguageId, LeaderboardEntry, Lesson, LearningModule, ThemeCa
 import { createClient } from "@/lib/supabaseClient";
 
 export async function fetchLanguages(): Promise<Language[]> {
-  const supabase = await createClient();
-  const { data } = await supabase.from("languages").select("*");
-  return (data || []) as Language[];
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.from("languages").select("*");
+    if (error) throw error;
+    return (data || []) as Language[];
+  } catch (error) {
+    console.error("Failed to fetch languages:", error);
+    return [];
+  }
 }
 
 export async function fetchModulesByLanguage(languageId: LanguageId): Promise<LearningModule[]> {
-  const supabase = await createClient();
-  const { data: modules } = await supabase
-    .from("modules")
-    .select('id, languageId:language_id, title, order, requiredXp:required_xp, difficulty')
-    .eq("language_id", languageId)
-    .order("order", { ascending: true });
+  try {
+    const supabase = await createClient();
+    const { data: modules, error: modulesError } = await supabase
+      .from("modules")
+      .select('id, languageId:language_id, title, order, requiredXp:required_xp, difficulty')
+      .eq("language_id", languageId)
+      .order("order", { ascending: true });
 
-  if (!modules) return [];
+    if (modulesError) throw modulesError;
+    if (!modules) return [];
 
-  const { data: lessons } = await supabase
-    .from("lessons")
-    .select('id, module_id')
-    .eq("language_id", languageId);
+    const { data: lessons, error: lessonsError } = await supabase
+      .from("lessons")
+      .select('id, module_id')
+      .eq("language_id", languageId);
 
-  return modules.map(m => ({
-    ...m,
-    lessonIds: (lessons || []).filter(l => l.module_id === m.id).map(l => l.id)
-  })) as LearningModule[];
+    if (lessonsError) throw lessonsError;
+
+    return modules.map(m => ({
+      ...m,
+      lessonIds: (lessons || []).filter(l => l.module_id === m.id).map(l => l.id)
+    })) as LearningModule[];
+  } catch (error) {
+    console.error("Failed to fetch modules for language:", error);
+    return [];
+  }
 }
 
 export async function fetchAllModules(): Promise<LearningModule[]> {
-  const supabase = await createClient();
-  const { data: modules } = await supabase
-    .from("modules")
-    .select('id, languageId:language_id, title, order, requiredXp:required_xp, difficulty')
-    .order("order", { ascending: true });
+  try {
+    const supabase = await createClient();
+    const { data: modules, error: modulesError } = await supabase
+      .from("modules")
+      .select('id, languageId:language_id, title, order, requiredXp:required_xp, difficulty')
+      .order("order", { ascending: true });
 
-  if (!modules) return [];
+    if (modulesError) throw modulesError;
+    if (!modules) return [];
 
-  const { data: lessons } = await supabase
-    .from("lessons")
-    .select('id, module_id');
+    const { data: lessons, error: lessonsError } = await supabase
+      .from("lessons")
+      .select('id, module_id');
 
-  return modules.map(m => ({
-    ...m,
-    lessonIds: (lessons || []).filter(l => l.module_id === m.id).map(l => l.id)
-  })) as LearningModule[];
+    if (lessonsError) throw lessonsError;
+
+    return modules.map(m => ({
+      ...m,
+      lessonIds: (lessons || []).filter(l => l.module_id === m.id).map(l => l.id)
+    })) as LearningModule[];
+  } catch (error) {
+    console.error("Failed to fetch all modules:", error);
+    return [];
+  }
 }
 
 export async function fetchLessonsByLanguage(languageId: LanguageId): Promise<Lesson[]> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("lessons")
-    .select(`
-      id,
-      languageId:language_id,
-      moduleId:module_id,
-      title,
-      description,
-      xpReward:xp_reward,
-      coinReward:coin_reward,
-      questions (
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("lessons")
+      .select(`
         id,
-        type,
-        prompt,
-        data
-      )
-    `)
-    .eq("language_id", languageId);
+        languageId:language_id,
+        moduleId:module_id,
+        title,
+        description,
+        xpReward:xp_reward,
+        coinReward:coin_reward,
+        questions (
+          id,
+          type,
+          prompt,
+          data
+        )
+      `)
+      .eq("language_id", languageId);
     
-  return (data || []).map((lesson: any) => ({
-    id: lesson.id,
-    languageId: lesson.languageId,
-    moduleId: lesson.moduleId,
-    title: lesson.title,
-    description: lesson.description,
-    xpReward: lesson.xpReward,
-    coinReward: lesson.coinReward,
-    questions: (lesson.questions || []).map((q: any) => ({
+    if (error) throw error;
+    return (data || []).map((lesson: any) => ({
+      id: lesson.id,
+      languageId: lesson.languageId,
+      moduleId: lesson.moduleId,
+      title: lesson.title,
+      description: lesson.description,
+      xpReward: lesson.xpReward,
+      coinReward: lesson.coinReward,
+      questions: (lesson.questions || []).map((q: any) => ({
+        id: q.id,
+        type: q.type,
+        prompt: q.prompt,
+        ...q.data
+      }))
+    })) as Lesson[];
+  } catch (error) {
+    console.error("Failed to fetch lessons for language:", error);
+    return [];
+  }
+}
+
+export async function fetchLessonById(lessonId: string): Promise<Lesson | null> {
+  try {
+    const supabase = await createClient();
+    const { data: lesson, error: lessonError } = await supabase
+      .from("lessons")
+      .select('id, languageId:language_id, moduleId:module_id, title, description, xpReward:xp_reward, coinReward:coin_reward')
+      .eq("id", lessonId)
+      .single();
+
+    if (lessonError) throw lessonError;
+    if (!lesson) return null;
+
+    const { data: questions, error: questionsError } = await supabase
+      .from("questions")
+      .select('*')
+      .eq("lesson_id", lessonId);
+
+    if (questionsError) throw questionsError;
+
+    const formattedQuestions = (questions || []).map((q: any) => ({
       id: q.id,
       type: q.type,
       prompt: q.prompt,
       ...q.data
-    }))
-  })) as Lesson[];
-}
+    }));
 
-export async function fetchLessonById(lessonId: string): Promise<Lesson | null> {
-  const supabase = await createClient();
-  const { data: lesson } = await supabase
-    .from("lessons")
-    .select('id, languageId:language_id, moduleId:module_id, title, description, xpReward:xp_reward, coinReward:coin_reward')
-    .eq("id", lessonId)
-    .single();
-
-  if (!lesson) return null;
-
-  const { data: questions } = await supabase
-    .from("questions")
-    .select('*')
-    .eq("lesson_id", lessonId);
-
-  const formattedQuestions = (questions || []).map((q: any) => ({
-    id: q.id,
-    type: q.type,
-    prompt: q.prompt,
-    ...q.data
-  }));
-
-  return {
-    ...lesson,
-    questions: formattedQuestions
-  } as Lesson;
+    return {
+      ...lesson,
+      questions: formattedQuestions
+    } as Lesson;
+  } catch (error) {
+    console.error("Failed to fetch lesson by ID:", error);
+    return null;
+  }
 }
 
 export async function fetchLanguageProgress(languageId: LanguageId) {
-  const supabase = await createClient();
-  const [{ count: modulesCount }, { data: lessonsData }] = await Promise.all([
-    supabase.from("modules").select('*', { count: 'exact', head: true }).eq("language_id", languageId),
-    supabase.from("lessons").select('xp_reward').eq("language_id", languageId)
-  ]);
+  try {
+    const supabase = await createClient();
+    const [{ count: modulesCount, error: modulesError }, { data: lessonsData, error: lessonsError }] = await Promise.all([
+      supabase.from("modules").select('*', { count: 'exact', head: true }).eq("language_id", languageId),
+      supabase.from("lessons").select('xp_reward').eq("language_id", languageId)
+    ]);
 
-  const totalXp = (lessonsData || []).reduce((acc, l) => acc + l.xp_reward, 0);
+    if (modulesError) throw modulesError;
+    if (lessonsError) throw lessonsError;
 
-  return {
-    totalModules: modulesCount || 0,
-    totalLessons: lessonsData?.length || 0,
-    totalXp,
-  };
+    const totalXp = (lessonsData || []).reduce((acc, l) => acc + l.xp_reward, 0);
+
+    return {
+      totalModules: modulesCount || 0,
+      totalLessons: lessonsData?.length || 0,
+      totalXp,
+    };
+  } catch (error) {
+    console.error("Failed to fetch language progress:", error);
+    return {
+      totalModules: 0,
+      totalLessons: 0,
+      totalXp: 0,
+    };
+  }
 }
 
 export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("user_profiles")
-    .select("id, name:username, xp, streak, avatar_id")
-    .order("xp", { ascending: false })
-    .limit(100);
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("user_profiles")
+      .select("id, name:username, xp, streak, avatar_id")
+      .order("xp", { ascending: false })
+      .limit(100);
     
-  return (data || []).map((user: any) => ({
-    id: user.id,
-    name: user.name,
-    xp: user.xp,
-    streak: user.streak,
-    avatarId: user.avatar_id || "pixel-bot",
-  })) as LeaderboardEntry[];
+    if (error) throw error;
+    return (data || []).map((user: any) => ({
+      id: user.id,
+      name: user.name,
+      xp: user.xp,
+      streak: user.streak,
+      avatarId: user.avatar_id || "pixel-bot",
+    })) as LeaderboardEntry[];
+  } catch (error) {
+    console.error("Failed to fetch leaderboard:", error);
+    return [];
+  }
 }
 
 export async function fetchThemeCatalog(): Promise<ThemeCatalogItem[]> {
-  const supabase = await createClient();
-  const { data } = await supabase.from("themes").select("*");
-  return (data || []) as ThemeCatalogItem[];
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.from("themes").select("*");
+    if (error) throw error;
+    return (data || []) as ThemeCatalogItem[];
+  } catch (error) {
+    console.error("Failed to fetch theme catalog:", error);
+    return [];
+  }
 }
 
 export async function fetchAvatarCatalog(): Promise<AvatarCatalogItem[]> {
-  const supabase = await createClient();
-  const { data } = await supabase.from("avatars").select("*");
-  return (data || []) as AvatarCatalogItem[];
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.from("avatars").select("*");
+    if (error) throw error;
+    return (data || []) as AvatarCatalogItem[];
+  } catch (error) {
+    console.error("Failed to fetch avatar catalog:", error);
+    return [];
+  }
 }
 
 export async function fetchDailyQuests(): Promise<DailyQuestTemplate[]> {
-  const supabase = await createClient();
-  const { data } = await supabase.from("daily_quests").select("*");
-  
-  return (data || []).map(q => ({
-    ...q,
-    rewardXp: q.reward_xp,
-    rewardCoins: q.reward_coins
-  })) as DailyQuestTemplate[];
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.from("daily_quests").select("*");
+    
+    if (error) throw error;
+    return (data || []).map(q => ({
+      ...q,
+      rewardXp: q.reward_xp,
+      rewardCoins: q.reward_coins
+    })) as DailyQuestTemplate[];
+  } catch (error) {
+    console.error("Failed to fetch daily quests:", error);
+    return [];
+  }
 }
 
 export async function fetchRecommendedLesson(

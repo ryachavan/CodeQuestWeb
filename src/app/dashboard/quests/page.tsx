@@ -19,6 +19,10 @@ export default function QuestsPage() {
     [dailyStats.lessonsCompleted, dailyStats.xpEarned, streak],
   );
 
+  const isValidMetric = (metric: string): metric is keyof typeof progressMap => {
+    return metric in progressMap;
+  };
+
   return (
     <div className="space-y-6">
       <header className="glass-panel rounded-3xl p-6 border-slate-700/70">
@@ -34,8 +38,9 @@ export default function QuestsPage() {
       {!isLoading && quests && (
         <div className="grid md:grid-cols-2 gap-4">
           {quests.map((quest) => {
-            const progress = progressMap[quest.metric];
-            const complete = progress >= quest.target;
+            const validMetric = isValidMetric(quest.metric);
+            const progress = validMetric ? progressMap[quest.metric] : 0;
+            const complete = validMetric && progress >= quest.target;
             const claimed = claimedQuestIds.includes(quest.id);
 
             return (

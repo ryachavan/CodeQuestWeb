@@ -79,7 +79,7 @@ export default function LessonPage() {
     const unlockedLessons = lessons.filter((item) => unlockedModuleIds.includes(item.moduleId));
 
     if (!unlockedLessons.length) {
-      return lessons[0];
+      return null;
     }
 
     if (
@@ -98,7 +98,9 @@ export default function LessonPage() {
       return nextUncompleted;
     }
 
-    return unlockedLessons[0];
+    // Only return already completed lesson if necessary
+    const lastUnlockedLesson = unlockedLessons[unlockedLessons.length - 1];
+    return lastUnlockedLesson || null;
   }, [completedLessons, language, lessons, requestedLesson, unlockedModuleIds]);
 
   if (lessonsLoading || !lesson) {

@@ -29,10 +29,15 @@ export default function ProfilePage() {
   const router = useRouter();
 
   const handleSignOut = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    logout();
-    router.push("/");
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("Failed to sign out:", error);
+    } finally {
+      logout();
+      router.push("/");
+    }
   };
 
   const { data: themes } = useSWR("theme-catalog", fetchThemeCatalog);

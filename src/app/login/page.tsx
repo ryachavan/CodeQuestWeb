@@ -29,12 +29,24 @@ export default function LoginPage() {
     setFeedback(null);
 
     try {
+      if (!email || !email.includes("@")) {
+        throw new Error("Please enter a valid email address");
+      }
+
+      if (!password || password.length < 6) {
+        throw new Error("Password must be at least 6 characters");
+      }
+
       if (supabase) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
+          if (error.message.includes("Invalid login credentials")) {
+            throw new Error("Invalid email or password");
+          }
           throw error;
         }
-        login({ username: email.split("@")[0], email });
+        const username = email.split("@")[0] || "User";
+        login({ username, email });
       } else {
         const fallbackName = email.split("@")[0] || "Guest Coder";
         login({ username: fallbackName, email: email || null });
