@@ -46,7 +46,7 @@ export default function ProfilePage() {
   return (
     <div className="space-y-6">
       <header className="glass-panel rounded-3xl p-6 border-slate-700/70">
-        <p className="text-xs uppercase tracking-[0.2em] text-cyan-300 mb-2">Profile Hub</p>
+        <p className="text-xs uppercase tracking-[0.2em] accent-text mb-2">Profile Hub</p>
         <h1 className="text-3xl font-black text-white">{username}</h1>
         <p className="text-slate-300 mt-2">{email ?? "No email connected"}</p>
 
@@ -60,7 +60,7 @@ export default function ProfilePage() {
 
       <section className="glass-panel rounded-2xl p-5 border-slate-700/70">
         <div className="flex items-center gap-2 mb-4">
-          <Palette size={18} className="text-cyan-300" />
+          <Palette size={18} className="accent-text" />
           <h2 className="text-xl font-black text-white">Theme Shop</h2>
         </div>
 
@@ -71,9 +71,9 @@ export default function ProfilePage() {
             return (
               <article
                 key={theme.id}
-                className={`rounded-xl border p-4 ${
+                className={`rounded-xl border p-4 transition-all ${
                   selected
-                    ? "border-cyan-400/45 bg-cyan-500/10"
+                    ? "theme-card-selected"
                     : "border-slate-700/70 bg-slate-900/60"
                 }`}
               >
@@ -88,7 +88,11 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={() => (owned ? setTheme(theme.id) : unlockTheme(theme.id, theme.cost))}
-                  className="mt-3 w-full rounded-lg py-2 bg-cyan-500 text-slate-950 font-bold hover:bg-cyan-400 transition-colors"
+                  className={`mt-3 w-full rounded-lg py-2 font-bold transition-all ${
+                    selected 
+                      ? "bg-slate-800 text-slate-400 cursor-default" 
+                      : "theme-button"
+                  }`}
                 >
                   {selected ? "Selected" : owned ? "Use Theme" : `Unlock (${theme.cost})`}
                 </button>
@@ -100,7 +104,7 @@ export default function ProfilePage() {
 
       <section className="glass-panel rounded-2xl p-5 border-slate-700/70">
         <div className="flex items-center gap-2 mb-4">
-          <UserCircle2 size={18} className="text-cyan-300" />
+          <UserCircle2 size={18} className="accent-text" />
           <h2 className="text-xl font-black text-white">Avatar Shop</h2>
         </div>
 
@@ -111,9 +115,9 @@ export default function ProfilePage() {
             return (
               <article
                 key={avatar.id}
-                className={`rounded-xl border p-4 ${
+                className={`rounded-xl border p-4 transition-all ${
                   selected
-                    ? "border-cyan-400/45 bg-cyan-500/10"
+                    ? "theme-card-selected"
                     : "border-slate-700/70 bg-slate-900/60"
                 }`}
               >
@@ -129,7 +133,11 @@ export default function ProfilePage() {
                   onClick={() =>
                     owned ? setAvatar(avatar.id) : unlockAvatar(avatar.id, avatar.cost)
                   }
-                  className="mt-3 w-full rounded-lg py-2 bg-cyan-500 text-slate-950 font-bold hover:bg-cyan-400 transition-colors"
+                  className={`mt-3 w-full rounded-lg py-2 font-bold transition-all ${
+                    selected 
+                      ? "bg-slate-800 text-slate-400 cursor-default" 
+                      : "theme-button"
+                  }`}
                 >
                   {selected ? "Selected" : owned ? "Use Avatar" : `Unlock (${avatar.cost})`}
                 </button>

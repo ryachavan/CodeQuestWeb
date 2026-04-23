@@ -231,7 +231,7 @@ function LessonRunner({
       <header className="space-y-4">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-cyan-300">Interactive Lesson</p>
+            <p className="text-xs uppercase tracking-[0.2em] accent-text">Interactive Lesson</p>
             <h1 className="text-2xl md:text-3xl font-black text-white">{lesson.title}</h1>
             <p className="text-slate-300 mt-1">{lesson.description}</p>
           </div>
@@ -249,9 +249,9 @@ function LessonRunner({
             return (
               <span
                 key={moduleItem.id}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs ${
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs transition-all ${
                   isUnlocked
-                    ? "border-cyan-400/35 bg-cyan-500/10 text-cyan-200"
+                    ? "accent-border accent-bg accent-text"
                     : "border-slate-700 bg-slate-900 text-slate-500"
                 }`}
               >
@@ -264,7 +264,7 @@ function LessonRunner({
 
         <div className="h-3 rounded-full bg-slate-800 overflow-hidden">
           <motion.div
-            className="h-full bg-cyan-400 rounded-full"
+            className="h-full accent-bg rounded-full"
             animate={{ width: `${Math.min(100, progressPercent)}%` }}
           />
         </div>
@@ -322,7 +322,7 @@ function LessonRunner({
                 <button
                   type="button"
                   onClick={submitCurrentAnswer}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-500 text-slate-950 font-extrabold hover:bg-cyan-400 transition-colors"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl theme-button"
                 >
                   Check answer
                 </button>
@@ -372,7 +372,7 @@ function LessonRunner({
 
       {lessonDone && finalScore && (
         <section className="glass-panel rounded-2xl p-6 border-slate-700/70 text-center">
-          <p className="text-xs uppercase tracking-[0.2em] text-cyan-300 mb-2">Lesson complete</p>
+          <p className="text-xs uppercase tracking-[0.2em] accent-text mb-2">Lesson complete</p>
           <h2 className="text-3xl font-black text-white mb-3">
             {finalScore.correct >= Math.ceil(finalScore.total * 0.6) ? "Excellent run!" : "Good effort!"}
           </h2>
@@ -397,7 +397,7 @@ function LessonRunner({
             You earned +{lesson.xpReward} XP and +{lesson.coinReward} Coins.
           </p>
           {nextLesson && nextLesson.moduleId !== lesson.moduleId && (
-            <p className="text-cyan-300 text-sm mb-5">🔓 Next module unlocked!</p>
+            <p className="accent-text text-sm mb-5">🔓 Next module unlocked!</p>
           )}
           {!nextLesson && (
             <p className="text-slate-400 text-sm mb-5">You&apos;ve reached the end of this path.</p>
@@ -416,7 +416,7 @@ function LessonRunner({
             {nextLesson && (
               <Link
                 href={`/dashboard/learn/${nextLesson.languageId}?lesson=${nextLesson.id}`}
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-cyan-500 text-slate-950 font-extrabold hover:bg-cyan-400 transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl theme-button"
               >
                 Continue
                 <ArrowRight size={16} />

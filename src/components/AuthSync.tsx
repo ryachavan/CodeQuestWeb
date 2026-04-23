@@ -38,7 +38,7 @@ export default function AuthSync() {
           }
         }
       );
-      subscription = data;
+      subscription = data.subscription;
     } catch (error) {
       console.error("Failed to set up auth listener:", error);
     }

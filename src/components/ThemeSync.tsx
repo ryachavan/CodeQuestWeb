@@ -43,10 +43,7 @@ export default function ThemeSync() {
   }, []);
 
   useEffect(() => {
-    document.documentElement.style.setProperty(
-      "--theme-accent",
-      themeAccentMap[selectedTheme],
-    );
+    document.documentElement.setAttribute("data-theme", selectedTheme);
   }, [selectedTheme]);
 
   return null;
