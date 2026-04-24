@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -35,8 +35,11 @@ export default function LessonPage() {
   const params = useParams<{ language: string }>();
   const searchParams = useSearchParams();
   const requestedLessonId = searchParams.get("lesson");
-  const completedLessons = useUserStore((state) => state.completedLessons);
+  const liveCompletedLessons = useUserStore((state) => state.completedLessons);
   const lessonScores = useUserStore((state) => state.lessonScores);
+
+  const [autoSelectedLessonId, setAutoSelectedLessonId] = useState<string | null>(null);
+  const activeLessonId = requestedLessonId || autoSelectedLessonId;
 
   const language: LanguageId = isLanguageId(params.language) ? params.language : defaultLanguage;
 
@@ -60,7 +63,7 @@ export default function LessonPage() {
     for (let i = 1; i < sortedModules.length; i++) {
       const prev = sortedModules[i - 1];
       const prevPassed = prev.lessonIds.some(
-        (lid) => (lessonScores[lid] ?? 0) >= 60,
+        (lid) => (lessonScores[lid] ?? 0) >= 60 || liveCompletedLessons.includes(lid),
       );
       if (prevPassed) {
         unlocked.push(sortedModules[i].id);
@@ -69,7 +72,7 @@ export default function LessonPage() {
       }
     }
     return unlocked;
-  }, [modules, lessonScores]);
+  }, [modules, lessonScores, liveCompletedLessons]);
 
   const lesson = useMemo(() => {
     if (!lessons?.length) {
@@ -82,26 +85,41 @@ export default function LessonPage() {
       return null;
     }
 
-    if (
-      requestedLesson &&
-      requestedLesson.languageId === language &&
-      unlockedModuleIds.includes(requestedLesson.moduleId)
-    ) {
-      return requestedLesson;
+    // 1. If we have an active lesson ID (either from URL or previously locked), try to use it
+    if (activeLessonId) {
+      const found = lessons.find((l) => l.id === activeLessonId);
+      // Fallback to auto-select if requested lesson isn't unlocked yet, 
+      // but if requestedLesson is populated via useSWR, it overrides
+      if (found && found.languageId === language && unlockedModuleIds.includes(found.moduleId)) {
+        return requestedLesson || found;
+      }
     }
 
-    const nextUncompleted = unlockedLessons.find(
-      (lessonItem) => !completedLessons.includes(lessonItem.id),
-    );
+    // 2. Otherwise, auto-select the furthest uncompleted lesson
+    let nextUncompleted = null;
+    for (let i = unlockedModuleIds.length - 1; i >= 0; i--) {
+      const moduleId = unlockedModuleIds[i];
+      const uncompletedInModule = unlockedLessons.find(
+        (l) => l.moduleId === moduleId && !liveCompletedLessons.includes(l.id),
+      );
+      if (uncompletedInModule) {
+        nextUncompleted = uncompletedInModule;
+        break;
+      }
+    }
 
     if (nextUncompleted) {
       return nextUncompleted;
     }
 
-    // Only return already completed lesson if necessary
-    const lastUnlockedLesson = unlockedLessons[unlockedLessons.length - 1];
-    return lastUnlockedLesson || null;
-  }, [completedLessons, language, lessons, requestedLesson, unlockedModuleIds]);
+    return unlockedLessons[unlockedLessons.length - 1] || null;
+  }, [liveCompletedLessons, language, lessons, requestedLesson, unlockedModuleIds, activeLessonId]);
+
+  useEffect(() => {
+    if (!requestedLessonId && !autoSelectedLessonId && lesson) {
+      setAutoSelectedLessonId(lesson.id);
+    }
+  }, [requestedLessonId, autoSelectedLessonId, lesson]);
 
   if (lessonsLoading || !lesson) {
     return (
@@ -224,6 +242,16 @@ function LessonRunner({
     });
     setFinalScore({ correct: projectedCorrect, total: lesson.questions.length });
     setLessonDone(true);
+  };
+
+  const retryLesson = () => {
+    setQuestionIndex(0);
+    setSubmitted(false);
+    setIsCorrect(false);
+    setAnsweredCorrectly(0);
+    setAnswer({ assembly: [] });
+    setLessonDone(false);
+    setFinalScore(null);
   };
 
   return (
@@ -370,61 +398,79 @@ function LessonRunner({
         )}
       </AnimatePresence>
 
-      {lessonDone && finalScore && (
-        <section className="glass-panel rounded-2xl p-6 border-slate-700/70 text-center">
-          <p className="text-xs uppercase tracking-[0.2em] accent-text mb-2">Lesson complete</p>
-          <h2 className="text-3xl font-black text-white mb-3">
-            {finalScore.correct >= Math.ceil(finalScore.total * 0.6) ? "Excellent run!" : "Good effort!"}
-          </h2>
+      {lessonDone && finalScore && (() => {
+        const isPassed = finalScore.correct >= Math.ceil(finalScore.total * 0.6);
+        return (
+          <section className="glass-panel rounded-2xl p-6 border-slate-700/70 text-center">
+            <p className="text-xs uppercase tracking-[0.2em] accent-text mb-2">Lesson complete</p>
+            <h2 className="text-3xl font-black text-white mb-3">
+              {isPassed ? "Excellent run!" : "You didn't pass this time."}
+            </h2>
 
-          {/* Score display */}
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <span
-              className={`text-5xl font-black ${
-                finalScore.correct >= Math.ceil(finalScore.total * 0.6)
-                  ? "text-emerald-400"
-                  : "text-amber-400"
-              }`}
-            >
-              {finalScore.correct}/{finalScore.total}
-            </span>
-            <span className="text-slate-400 text-sm leading-tight">
-              correct<br />answers
-            </span>
-          </div>
-
-          <p className="text-slate-300 mb-1">
-            You earned +{lesson.xpReward} XP and +{lesson.coinReward} Coins.
-          </p>
-          {nextLesson && nextLesson.moduleId !== lesson.moduleId && (
-            <p className="accent-text text-sm mb-5">🔓 Next module unlocked!</p>
-          )}
-          {!nextLesson && (
-            <p className="text-slate-400 text-sm mb-5">You&apos;ve reached the end of this path.</p>
-          )}
-          {nextLesson && nextLesson.moduleId === lesson.moduleId && (
-            <p className="text-slate-400 text-sm mb-5">Ready for the next lesson?</p>
-          )}
-
-          <div className="flex flex-wrap justify-center gap-3 mt-4">
-            <Link
-              href="/dashboard"
-              className="px-5 py-3 rounded-xl border border-slate-700 text-slate-200 hover:bg-slate-800 transition-colors"
-            >
-              Back to Dashboard
-            </Link>
-            {nextLesson && (
-              <Link
-                href={`/dashboard/learn/${nextLesson.languageId}?lesson=${nextLesson.id}`}
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl theme-button"
+            {/* Score display */}
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <span
+                className={`text-5xl font-black ${
+                  isPassed ? "text-emerald-400" : "text-amber-400"
+                }`}
               >
-                Continue
-                <ArrowRight size={16} />
-              </Link>
+                {finalScore.correct}/{finalScore.total}
+              </span>
+              <span className="text-slate-400 text-sm leading-tight">
+                correct<br />answers
+              </span>
+            </div>
+
+            {isPassed ? (
+              <>
+                <p className="text-slate-300 mb-1">
+                  You earned +{lesson.xpReward} XP and +{lesson.coinReward} Coins.
+                </p>
+                {nextLesson && nextLesson.moduleId !== lesson.moduleId && (
+                  <p className="accent-text text-sm mb-5">🔓 Next module unlocked!</p>
+                )}
+                {!nextLesson && (
+                  <p className="text-slate-400 text-sm mb-5">You&apos;ve reached the end of this path.</p>
+                )}
+                {nextLesson && nextLesson.moduleId === lesson.moduleId && (
+                  <p className="text-slate-400 text-sm mb-5">Ready for the next lesson?</p>
+                )}
+              </>
+            ) : (
+              <p className="text-slate-300 mb-5">
+                You need at least 60% to pass this lesson and unlock the next module. Give it another try!
+              </p>
             )}
-          </div>
-        </section>
-      )}
+
+            <div className="flex flex-wrap justify-center gap-3 mt-4">
+              <Link
+                href="/dashboard"
+                className="px-5 py-3 rounded-xl border border-slate-700 text-slate-200 hover:bg-slate-800 transition-colors"
+              >
+                Back to Dashboard
+              </Link>
+              {!isPassed ? (
+                <button
+                  type="button"
+                  onClick={retryLesson}
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl theme-button"
+                >
+                  <RefreshCcw size={16} />
+                  Retry Lesson
+                </button>
+              ) : nextLesson && (
+                <Link
+                  href={`/dashboard/learn/${nextLesson.languageId}?lesson=${nextLesson.id}`}
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl theme-button"
+                >
+                  Continue
+                  <ArrowRight size={16} />
+                </Link>
+              )}
+            </div>
+          </section>
+        );
+      })()}
     </div>
   );
 }

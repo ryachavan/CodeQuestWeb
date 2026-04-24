@@ -13,7 +13,7 @@ export default function AuthSync() {
       try {
         const supabase = createClient();
         const { data: { session } } = await supabase.auth.getSession();
-        
+
         if (session?.user) {
           await syncWithSupabase();
         }
@@ -24,7 +24,7 @@ export default function AuthSync() {
 
     initSync();
 
-    let subscription;
+    let subscription: any;
     try {
       const supabase = createClient();
       const { data } = supabase.auth.onAuthStateChange(

@@ -85,13 +85,6 @@ export default function Dashboard() {
       </section>
 
       <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-black text-white">Language Paths</h2>
-          <Link href="/dashboard/leaderboard" className="text-sm accent-text hover:opacity-80">
-            Leaderboard
-          </Link>
-        </div>
-
         {langsLoading && (
           <div className="grid gap-4 sm:grid-cols-2">
             {[1, 2, 3, 4].map((item) => (
@@ -102,50 +95,9 @@ export default function Dashboard() {
 
         {!langsLoading && langs && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {langs.map((lang, index) => {
-              const ui = languageUi[lang.id];
-              const Icon = ui.icon;
-              const prefix = lessonPrefixMap[lang.id];
-              const completedInLanguage = completedLessons.filter((lessonId) =>
-                lessonId.startsWith(prefix),
-              ).length;
-              const completionRate = Math.min(100, completedInLanguage * 50);
-
-              return (
-                <motion.div
-                  key={lang.id}
-                  initial={{ opacity: 0, y: 18 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.08 }}
-                >
-                  <Link
-                    href={`/dashboard/learn/${lang.id}`}
-                    className={`glass-panel block rounded-2xl p-5 border ${ui.border} ${ui.glow} hover:-translate-y-0.5 transition-transform`}
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className={`p-3 rounded-xl ${ui.bg} ${ui.color}`}>
-                        <Icon size={24} strokeWidth={2.4} />
-                      </div>
-                      <span className="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                        {languageIcons[lang.id]}
-                      </span>
-                    </div>
-                    <h3 className="text-xl font-black text-white mb-1">{lang.name}</h3>
-                    <p className="text-slate-300 text-sm mb-4">{lang.tagline}</p>
-                    <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full accent-bg transition-all"
-                        style={{ width: `${completionRate}%` }}
-                      />
-                    </div>
-                    <div className="mt-2 text-xs text-slate-400 flex justify-between">
-                      <span>{completedInLanguage} lessons done</span>
-                      <span>{completionRate}%</span>
-                    </div>
-                  </Link>
-                </motion.div>
-              );
-            })}
+            {langs.map((lang, index) => (
+              <LanguageCard key={lang.id} lang={lang} index={index} />
+            ))}
           </div>
         )}
       </section>
@@ -243,5 +195,56 @@ function RecommendedCard() {
         Start Lesson
       </Link>
     </article>
+  );
+}
+
+function LanguageCard({ lang, index }: { lang: any; index: number }) {
+  const { completedLessons } = useUserStore();
+  const ui = languageUi[lang.id as keyof typeof languageUi];
+  const Icon = ui.icon;
+  const prefix = lessonPrefixMap[lang.id as keyof typeof lessonPrefixMap];
+  const completedInLanguage = completedLessons.filter((lessonId) =>
+    lessonId.startsWith(prefix),
+  ).length;
+
+  const { data: progress } = useSWR(["progress", lang.id], () =>
+    fetchLanguageProgress(lang.id),
+  );
+
+  const totalLessons = progress?.totalLessons || 0;
+  const completionRate = totalLessons > 0 ? Math.round((completedInLanguage / totalLessons) * 100) : 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.08 }}
+    >
+      <Link
+        href={`/dashboard/learn/${lang.id}`}
+        className={`glass-panel block rounded-2xl p-5 border ${ui.border} ${ui.glow} hover:-translate-y-0.5 transition-transform`}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className={`p-3 rounded-xl ${ui.bg} ${ui.color}`}>
+            <Icon size={24} strokeWidth={2.4} />
+          </div>
+          <span className="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+            {languageIcons[lang.id as keyof typeof languageIcons]}
+          </span>
+        </div>
+        <h3 className="text-xl font-black text-white mb-1">{lang.name}</h3>
+        <p className="text-slate-300 text-sm mb-4">{lang.tagline}</p>
+        <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full accent-bg transition-all"
+            style={{ width: `${completionRate}%` }}
+          />
+        </div>
+        <div className="mt-2 text-xs text-slate-400 flex justify-between">
+          <span>{completedInLanguage} {completedInLanguage === 1 ? "lesson" : "lessons"} done</span>
+          <span>{completionRate}%</span>
+        </div>
+      </Link>
+    </motion.div>
   );
 }
