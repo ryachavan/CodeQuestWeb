@@ -53,7 +53,7 @@ export default function LeaderboardPage() {
 
       {!isLoading && (
         <section className="glass-panel rounded-2xl border-slate-700/70 overflow-hidden">
-          <div className="grid grid-cols-[72px_1fr_110px_110px] px-4 py-3 text-xs uppercase tracking-[0.14em] text-slate-400 border-b border-slate-700/80">
+          <div className="grid grid-cols-[50px_1fr_60px_60px] md:grid-cols-[72px_1fr_110px_110px] px-3 md:px-4 py-3 text-[10px] md:text-xs uppercase tracking-[0.14em] text-slate-400 border-b border-slate-700/80">
             <p>Rank</p>
             <p>Coder</p>
             <p className="text-right">XP</p>
@@ -65,16 +65,16 @@ export default function LeaderboardPage() {
             return (
               <div
                 key={entry.id}
-                className={`grid grid-cols-[72px_1fr_110px_110px] px-4 py-3 border-b border-slate-800/70 text-sm items-center ${
+                className={`grid grid-cols-[50px_1fr_60px_60px] md:grid-cols-[72px_1fr_110px_110px] px-3 md:px-4 py-3 border-b border-slate-800/70 text-sm items-center ${
                   isCurrentUser ? "bg-cyan-500/10" : ""
                 }`}
               >
                 <div className="flex items-center gap-2 text-slate-300">
                   <RankIcon rank={entry.rank} />
-                  <span className="font-bold">#{entry.rank}</span>
+                  <span className="font-bold text-xs md:text-sm">#{entry.rank}</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-lg bg-slate-800/80 w-8 h-8 rounded-full flex items-center justify-center border border-slate-700/50">
+                <div className="flex items-center gap-1.5 md:gap-3 overflow-hidden">
+                  <span className="text-sm md:text-lg bg-slate-800/80 w-6 h-6 md:w-8 md:h-8 rounded-full flex shrink-0 items-center justify-center border border-slate-700/50">
                     {(() => {
                       const emojiMap: Record<string, string> = {
                         "pixel-bot": "🤖",
@@ -84,12 +84,12 @@ export default function LeaderboardPage() {
                       return emojiMap[entry.avatarId] || "🤖";
                     })()}
                   </span>
-                  <p className={`font-bold ${isCurrentUser ? "text-cyan-200" : "text-white"}`}>
+                  <p className={`font-bold truncate text-xs md:text-base ${isCurrentUser ? "text-cyan-200" : "text-white"}`}>
                     {entry.name || "Unknown User"}
                   </p>
                 </div>
-                <p className="text-right font-semibold text-slate-100">{entry.xp}</p>
-                <p className="text-right font-semibold text-orange-300">{entry.streak}d</p>
+                <p className="text-right font-semibold text-slate-100 text-xs md:text-sm">{entry.xp}</p>
+                <p className="text-right font-semibold text-orange-300 text-xs md:text-sm">{entry.streak}d</p>
               </div>
             );
           })}
