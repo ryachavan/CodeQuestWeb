@@ -1,21 +1,29 @@
 import { Language, LanguageId, LeaderboardEntry, Lesson, LearningModule, ThemeCatalogItem, AvatarCatalogItem, DailyQuestTemplate } from "@/lib/types";
 import { createClient } from "@/lib/supabaseClient";
 
+// Use a single shared client instance to prevent auth lock race conditions
+// when multiple SWR fetches fire in parallel on page load.
+let _client: ReturnType<typeof createClient> | null = null;
+function getClient() {
+  if (!_client) _client = createClient();
+  return _client;
+}
+
 export async function fetchLanguages(): Promise<Language[]> {
   try {
-    const supabase = await createClient();
+    const supabase = getClient();
     const { data, error } = await supabase.from("languages").select("*");
     if (error) throw error;
     return (data || []) as Language[];
   } catch (error) {
-    console.error("Failed to fetch languages:", error);
+    console.error("Failed to fetch languages:", (error as any)?.message || JSON.stringify(error));
     return [];
   }
 }
 
 export async function fetchModulesByLanguage(languageId: LanguageId): Promise<LearningModule[]> {
   try {
-    const supabase = await createClient();
+    const supabase = getClient();
     const { data: modules, error: modulesError } = await supabase
       .from("modules")
       .select('id, languageId:language_id, title, order, requiredXp:required_xp, difficulty')
@@ -37,14 +45,14 @@ export async function fetchModulesByLanguage(languageId: LanguageId): Promise<Le
       lessonIds: (lessons || []).filter(l => l.module_id === m.id).map(l => l.id)
     })) as LearningModule[];
   } catch (error) {
-    console.error("Failed to fetch modules for language:", error);
+    console.error("Failed to fetch modules for language:", (error as any)?.message || JSON.stringify(error));
     return [];
   }
 }
 
 export async function fetchAllModules(): Promise<LearningModule[]> {
   try {
-    const supabase = await createClient();
+    const supabase = getClient();
     const { data: modules, error: modulesError } = await supabase
       .from("modules")
       .select('id, languageId:language_id, title, order, requiredXp:required_xp, difficulty')
@@ -64,14 +72,14 @@ export async function fetchAllModules(): Promise<LearningModule[]> {
       lessonIds: (lessons || []).filter(l => l.module_id === m.id).map(l => l.id)
     })) as LearningModule[];
   } catch (error) {
-    console.error("Failed to fetch all modules:", error);
+    console.error("Failed to fetch all modules:", (error as any)?.message || JSON.stringify(error));
     return [];
   }
 }
 
 export async function fetchLessonsByLanguage(languageId: LanguageId): Promise<Lesson[]> {
   try {
-    const supabase = await createClient();
+    const supabase = getClient();
     const { data, error } = await supabase
       .from("lessons")
       .select(`
@@ -108,14 +116,14 @@ export async function fetchLessonsByLanguage(languageId: LanguageId): Promise<Le
       }))
     })) as Lesson[];
   } catch (error) {
-    console.error("Failed to fetch lessons for language:", error);
+    console.error("Failed to fetch lessons for language:", (error as any)?.message || JSON.stringify(error));
     return [];
   }
 }
 
 export async function fetchLessonById(lessonId: string): Promise<Lesson | null> {
   try {
-    const supabase = await createClient();
+    const supabase = getClient();
     const { data: lesson, error: lessonError } = await supabase
       .from("lessons")
       .select('id, languageId:language_id, moduleId:module_id, title, description, xpReward:xp_reward, coinReward:coin_reward')
@@ -144,14 +152,14 @@ export async function fetchLessonById(lessonId: string): Promise<Lesson | null> 
       questions: formattedQuestions
     } as Lesson;
   } catch (error) {
-    console.error("Failed to fetch lesson by ID:", error);
+    console.error("Failed to fetch lesson by ID:", (error as any)?.message || JSON.stringify(error));
     return null;
   }
 }
 
 export async function fetchLanguageProgress(languageId: LanguageId) {
   try {
-    const supabase = await createClient();
+    const supabase = getClient();
     const [{ count: modulesCount, error: modulesError }, { data: lessonsData, error: lessonsError }] = await Promise.all([
       supabase.from("modules").select('*', { count: 'exact', head: true }).eq("language_id", languageId),
       supabase.from("lessons").select('xp_reward').eq("language_id", languageId)
@@ -168,7 +176,7 @@ export async function fetchLanguageProgress(languageId: LanguageId) {
       totalXp,
     };
   } catch (error) {
-    console.error("Failed to fetch language progress:", error);
+    console.error("Failed to fetch language progress:", (error as any)?.message || JSON.stringify(error));
     return {
       totalModules: 0,
       totalLessons: 0,
@@ -179,7 +187,7 @@ export async function fetchLanguageProgress(languageId: LanguageId) {
 
 export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
   try {
-    const supabase = await createClient();
+    const supabase = getClient();
     const { data, error } = await supabase
       .from("user_profiles")
       .select("id, name:username, xp, streak, avatar_id")
@@ -195,38 +203,38 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
       avatarId: user.avatar_id || "pixel-bot",
     })) as LeaderboardEntry[];
   } catch (error) {
-    console.error("Failed to fetch leaderboard:", error);
+    console.error("Failed to fetch leaderboard:", (error as any)?.message || JSON.stringify(error));
     return [];
   }
 }
 
 export async function fetchThemeCatalog(): Promise<ThemeCatalogItem[]> {
   try {
-    const supabase = await createClient();
+    const supabase = getClient();
     const { data, error } = await supabase.from("themes").select("*");
     if (error) throw error;
     return (data || []) as ThemeCatalogItem[];
   } catch (error) {
-    console.error("Failed to fetch theme catalog:", error);
+    console.error("Failed to fetch theme catalog:", (error as any)?.message || JSON.stringify(error));
     return [];
   }
 }
 
 export async function fetchAvatarCatalog(): Promise<AvatarCatalogItem[]> {
   try {
-    const supabase = await createClient();
+    const supabase = getClient();
     const { data, error } = await supabase.from("avatars").select("*");
     if (error) throw error;
     return (data || []) as AvatarCatalogItem[];
   } catch (error) {
-    console.error("Failed to fetch avatar catalog:", error);
+    console.error("Failed to fetch avatar catalog:", (error as any)?.message || JSON.stringify(error));
     return [];
   }
 }
 
 export async function fetchDailyQuests(): Promise<DailyQuestTemplate[]> {
   try {
-    const supabase = await createClient();
+    const supabase = getClient();
     const { data, error } = await supabase.from("daily_quests").select("*");
     
     if (error) throw error;
@@ -236,7 +244,7 @@ export async function fetchDailyQuests(): Promise<DailyQuestTemplate[]> {
       rewardCoins: q.reward_coins
     })) as DailyQuestTemplate[];
   } catch (error) {
-    console.error("Failed to fetch daily quests:", error);
+    console.error("Failed to fetch daily quests:", (error as any)?.message || JSON.stringify(error));
     return [];
   }
 }

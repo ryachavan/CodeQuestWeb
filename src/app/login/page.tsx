@@ -38,14 +38,26 @@ export default function LoginPage() {
       }
 
       if (supabase) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
           if (error.message.includes("Invalid login credentials")) {
             throw new Error("Invalid email or password");
           }
           throw error;
         }
-        const username = email.split("@")[0] || "User";
+
+        // Fetch the actual username from user_profiles instead of deriving from email
+        let username = email.split("@")[0] || "User";
+        if (authData.user) {
+          const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("username")
+            .eq("id", authData.user.id)
+            .single();
+          if (profile?.username) {
+            username = profile.username;
+          }
+        }
         login({ username, email });
       } else {
         const fallbackName = email.split("@")[0] || "Guest Coder";

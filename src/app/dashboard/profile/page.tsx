@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import useSWR from "swr";
-import { LogOut, Palette, Sparkles, UserCircle2 } from "lucide-react";
+import { LogOut, Palette, Sparkles, UserCircle2, Edit2, Check, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabaseClient";
 import { fetchAvatarCatalog, fetchThemeCatalog } from "@/lib/dataApi";
@@ -23,10 +24,23 @@ export default function ProfilePage() {
     unlockTheme,
     setAvatar,
     unlockAvatar,
+    updateUsername,
     logout,
   } = useUserStore();
 
   const router = useRouter();
+
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [newUsername, setNewUsername] = useState(username);
+
+  const handleSaveUsername = () => {
+    if (newUsername.trim()) {
+      updateUsername(newUsername.trim());
+    } else {
+      setNewUsername(username);
+    }
+    setIsEditingUsername(false);
+  };
 
   const handleSignOut = async () => {
     try {
@@ -47,7 +61,37 @@ export default function ProfilePage() {
     <div className="space-y-6">
       <header className="glass-panel rounded-3xl p-6 border-slate-700/70">
         <p className="text-xs uppercase tracking-[0.2em] accent-text mb-2">Profile Hub</p>
-        <h1 className="text-3xl font-black text-white">{username}</h1>
+        
+        {isEditingUsername ? (
+          <div className="flex items-center gap-2 mb-2">
+            <input
+              type="text"
+              value={newUsername}
+              onChange={(e) => setNewUsername(e.target.value)}
+              className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-1.5 text-xl font-black text-white focus:outline-none focus:border-cyan-400"
+              autoFocus
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveUsername()}
+            />
+            <button onClick={handleSaveUsername} className="p-2 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/30 transition-colors">
+              <Check size={18} />
+            </button>
+            <button onClick={() => { setIsEditingUsername(false); setNewUsername(username); }} className="p-2 bg-slate-800 text-slate-400 rounded-lg hover:bg-slate-700 transition-colors">
+              <X size={18} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-black text-white">{username}</h1>
+            <button 
+              onClick={() => { setIsEditingUsername(true); setNewUsername(username); }}
+              className="p-1.5 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-md transition-colors"
+              title="Edit Username"
+            >
+              <Edit2 size={16} />
+            </button>
+          </div>
+        )}
+        
         <p className="text-slate-300 mt-2">{email ?? "No email connected"}</p>
 
         <div className="mt-5 grid sm:grid-cols-4 gap-3">

@@ -26,7 +26,8 @@ interface UserState {
   claimedQuestIds: string[];
   lastActivity: string | null;
   dailyStats: DailyStats;
-  login: (payload: { username: string; email?: string | null }) => void;
+  login: (payload: { username: string; email: string | null }) => void;
+  updateUsername: (username: string) => void;
   logout: () => void;
   addXp: (amount: number) => void;
   addCoins: (amount: number) => void;
@@ -91,6 +92,10 @@ export const useUserStore = create<UserState>()(
           email: email ?? null,
           isAuthenticated: true,
         })),
+      updateUsername: (username: string) => {
+        set(() => ({ username }));
+        get().saveToSupabase();
+      },
       logout: () => set(() => getInitialState()),
       addXp: (amount) => {
         const safeAmount = Math.max(0, amount);
@@ -331,14 +336,17 @@ export const useUserStore = create<UserState>()(
             const validTheme = isThemeId(profile.theme_id) ? profile.theme_id : "neon-cyan";
             const validAvatar = isAvatarId(profile.avatar_id) ? profile.avatar_id : "pixel-bot";
             
+            const syncedXp = profile.xp || 0;
             set({
               id: user.id,
               username: profile.username,
               email: user.email || null,
               isAuthenticated: true,
-              xp: profile.xp || 0,
+              xp: syncedXp,
               coins: profile.coins || 0,
               streak: profile.streak || 0,
+              level: calculateLevel(syncedXp),
+              lastActivity: profile.last_activity || null,
               selectedTheme: validTheme,
               selectedAvatar: validAvatar,
               ownedThemes: themes?.map((t: any) => isThemeId(t.theme_id) ? t.theme_id : "neon-cyan").filter((id: ThemeId) => id) || ["neon-cyan"],
@@ -363,6 +371,7 @@ export const useUserStore = create<UserState>()(
             xp: state.xp,
             coins: state.coins,
             streak: state.streak,
+            last_activity: state.lastActivity,
             theme_id: state.selectedTheme,
             avatar_id: state.selectedAvatar,
           }).eq("id", state.id);

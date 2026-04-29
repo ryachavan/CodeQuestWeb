@@ -30,37 +30,34 @@ export default function SignupPage() {
     setFeedback(null);
 
     try {
+      if (!username || !username.trim()) {
+        throw new Error("Please enter a username");
+      }
+
       if (supabase) {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({ 
+          email, 
+          password,
+          options: {
+            data: {
+              username: username.trim()
+            }
+          }
+        });
         if (error) {
           throw error;
         }
 
         if (data.user) {
-          // Initialize profile and defaults in DB
-          await Promise.all([
-            supabase.from("user_profiles").insert({
-              id: data.user.id,
-              username: username || email.split("@")[0],
-              xp: 10,
-              coins: 0,
-              streak: 0,
-            }),
-            supabase.from("user_themes").insert({
-              user_id: data.user.id,
-              theme_id: "neon-cyan",
-            }),
-            supabase.from("user_avatars").insert({
-              user_id: data.user.id,
-              avatar_id: "pixel-bot",
-            }),
-          ]);
+          // The database trigger 'handle_new_user' automatically initializes
+          // the user_profiles, user_themes, and user_avatars rows for us,
+          // using the username we passed in the metadata options above.
         }
 
-        login({ username: username || email.split("@")[0], email });
+        login({ username: username.trim(), email });
         setFeedback("Account created! Welcome to CodeQuest.");
       } else {
-        const fallbackName = username || email.split("@")[0] || "Guest Coder";
+        const fallbackName = username.trim() || "Guest Coder";
         login({ username: fallbackName, email: email || null });
         setFeedback("Signed in with local demo profile.");
       }
@@ -91,6 +88,7 @@ export default function SignupPage() {
           <label className="block">
             <span className="text-sm text-slate-300">Username</span>
             <input
+              required
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               placeholder="code_ninja"
