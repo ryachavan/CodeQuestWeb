@@ -4,10 +4,7 @@ CodeQuest is a gamified programming learning platform built to make coding educa
 
 **Live Deployment:** [https://code-quest-swart.vercel.app/](https://code-quest-swart.vercel.app/)
 
-<video width="100%" controls>
-  <source src="https://6bd7svqfh19e4jqj.public.blob.vercel-storage.com/demo.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+![CodeQuest Demo](public/demo.gif)
 
 ## Features
 
