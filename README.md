@@ -1,274 +1,99 @@
-# CodeQuestWeb
+# CodeQuest
 
-CodeQuestWeb is a gamified coding-learning platform built with Next.js App Router, React, and Supabase. It provides language learning paths, interactive question-based lessons, daily quests, profile customization, and a global leaderboard.
+CodeQuest is a gamified programming learning platform built to make coding education interactive, rewarding, and fun. Featuring dynamic language learning paths, daily quests, global leaderboards, and unlockable profile cosmetics.
 
-## Table of Contents
+**Live Deployment:** [https://code-quest-swart.vercel.app/](https://code-quest-swart.vercel.app/)
 
-1. [Technical Overview](#technical-overview)
-2. [Architecture](#architecture)
-3. [Project Structure](#project-structure)
-4. [Routing and Feature Modules](#routing-and-feature-modules)
-5. [Data and State Flow](#data-and-state-flow)
-6. [Database Design (Supabase)](#database-design-supabase)
-7. [Libraries and Tooling](#libraries-and-tooling)
-8. [Environment Variables](#environment-variables)
-9. [Local Development](#local-development)
-10. [Build, Lint, and Runtime Commands](#build-lint-and-runtime-commands)
-11. [Security and Operational Notes](#security-and-operational-notes)
+![CodeQuest Dashboard](public/preview.png) *(Preview Placeholder)*
 
-## Technical Overview
+## Features
 
-- Framework: Next.js 16 (App Router)
-- UI Runtime: React 19
-- Language: TypeScript (strict mode)
-- Styling: Tailwind CSS v4 + custom global theme variables
-- Animation: Framer Motion
-- Backend as a Service: Supabase (Auth + Postgres + RLS)
-- Client Data Fetching: SWR
-- Client State: Zustand + persist middleware
+*   **Interactive Learning Modules:** Path-based learning with a module/lesson structure and three question types: multiple choice, code assembly, and fill-in-the-blank.
+*   **Gamified Progression:** Earn XP and Coins by completing lessons (scoring ≥ 60%). Maintain streaks by learning daily.
+*   **Unlockable Cosmetics:** Use earned coins to purchase custom Avatars (e.g., `fox-coder`, `holo-wizard`) and UI Themes (e.g., `solar-flare`, `matrix-green`) from the store.
+*   **Daily Quests:** Complete rotating daily objectives for massive XP and coin boosts.
+*   **Global Leaderboard:** Compete with other learners globally based on total XP.
 
-The application follows a client-heavy model for interactive gameplay while still using App Router structure and server-side Supabase support for auth cookie/session handling.
+## Tech Stack
 
-## Architecture
+*   **Framework:** Next.js 16 (App Router, Turbopack)
+*   **UI Library:** React 19
+*   **Language:** TypeScript (Strict Mode)
+*   **Styling:** Tailwind CSS v4 + Custom Theme CSS Variables
+*   **Animations:** Framer Motion
+*   **Backend & Auth:** Supabase (Postgres Database, Row Level Security, SSR Auth)
+*   **State Management:** Zustand (with local persistence)
+*   **Data Fetching:** SWR (Stale-While-Revalidate caching)
 
-### High-Level Architecture
+## Architecture & Security
 
-```mermaid
-graph TD
-  U[Browser] --> N[Next.js App Router]
-  N --> C[Client Feature Pages]
-  C --> S[SWR Fetch Layer]
-  S --> SB[(Supabase Postgres + Auth)]
-  C --> Z[Zustand User Store]
-  Z --> L[Local Storage Persist]
-  Z --> SB
-  N --> P[Proxy Middleware]
-  P --> SB
+### Route Protection (Two-Layer Security)
+Access to `/dashboard/*` is strictly protected:
+1.  **Server-Side (`src/proxy.ts`):** Next.js middleware intercepts requests at the edge and redirects unauthenticated users to `/login` if Supabase is connected.
+2.  **Client-Side (`src/components/ProtectedRoute.tsx`):** A wrapper component prevents "flashes" of unauthenticated content and gracefully handles local Demo Mode sessions.
+
+### Data Flow & Performance
+*   **Supabase Singleton:** Database connections use a shared `getClient()` singleton pattern to prevent auth-lock race conditions.
+*   **Debounced Syncing:** Rapid state mutations (e.g., claiming quests, adding XP) are debounced before syncing to the cloud via `saveToSupabase` to minimize database writes.
+*   **Dynamic Store Economy:** The store's pricing is scaled dynamically at the API layer (`src/lib/dataApi.ts`) to align perfectly with the average coin output of quizzes and quests.
+
+## Getting Started
+
+### 1. Installation
+Clone the repository and install dependencies using `npm`. *(Note: This project strictly uses `package-lock.json` and overrides `postcss` to prevent vulnerabilities).*
+
+```bash
+git clone https://github.com/ryachavan/codequest.git
+cd codequest
+npm install
 ```
 
-### Architectural Layers
+### 2. Environment Variables
+Create a `.env.local` file in the root directory:
 
-1. Presentation Layer
-- Implemented in route pages under `src/app/*`
-- Rich UI interactions, motion transitions, and responsive dashboard shell
-- Lesson runtime supports three question types: multiple choice, code assembly, and fill blank
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
+# Alternatively: NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-2. Application Layer
-- Data API functions in `src/lib/dataApi.ts` convert raw DB responses into typed domain models
-- User progression logic in `src/store/userStore.ts` handles XP, coins, streaks, claiming quests, unlock logic, and persistence
+*Note: If no Supabase keys are provided, the app will automatically fall back to **Demo Mode**, utilizing local storage for progression.*
 
-3. Infrastructure Layer
-- Supabase browser client in `src/lib/supabaseClient.ts`
-- Supabase server client in `src/lib/supabaseServer.ts`
-- Session-refresh proxy in `src/proxy.ts`
-- SQL schema and data bootstrapping in `supabase/migrations/*.sql`
+### 3. Database Setup (Supabase)
+Run the SQL migrations located in `supabase/migrations/` sequentially in your Supabase SQL Editor to bootstrap the necessary tables (`user_profiles`, `lessons`, `themes`, `avatars`, etc.) and Row Level Security (RLS) policies.
 
-### Runtime Modes
-
-1. Connected mode
-- If `NEXT_PUBLIC_SUPABASE_URL` and anon key are configured, auth and data are live against Supabase.
-
-2. Demo mode
-- If Supabase env vars are missing, auth falls back to local/demo behavior and the app remains usable for UI flows.
+### 4. Start Development Server
+```bash
+npm run dev
+```
+Navigate to `http://localhost:3000` to start exploring.
 
 ## Project Structure
 
 ```text
 src/
-  app/
-    layout.tsx
-    page.tsx
-    login/page.tsx
-    signup/page.tsx
-    dashboard/
-      layout.tsx
-      page.tsx
-      leaderboard/page.tsx
-      quests/page.tsx
-      profile/page.tsx
-      learn/[language]/page.tsx
-  components/
-    AuthSync.tsx
-    Sidebar.tsx
-    Topbar.tsx
-    MobileNav.tsx
-    ThemeSync.tsx
-  lib/
-    dataApi.ts
-    languageUi.ts
-    supabaseClient.ts
-    supabaseServer.ts
-    types.ts
-  store/
-    userStore.ts
-  proxy.ts
-supabase/
-  migrations/
-    0000_initial_schema.sql
-    0001_seed_data.sql
-    0002_expanded_features.sql
-    0003_profile_trigger.sql
-    0004_leaderboard_policy.sql
+├── app/
+│   ├── dashboard/        # Protected app interface (Learn, Profile, Store)
+│   ├── login/            # Auth pages
+│   ├── signup/           # Auth pages
+│   ├── layout.tsx        # Global shell & providers
+│   └── page.tsx          # Marketing Landing Page
+├── components/           # Reusable UI (Sidebar, Topbar, AuthSync, ProtectedRoute)
+├── lib/
+│   ├── dataApi.ts        # Primary data fetching and business logic
+│   ├── supabaseClient.ts # Supabase client singleton configuration
+│   ├── types.ts          # Shared TypeScript interfaces
+│   └── languageUi.ts     # Visual mappings for languages
+├── store/
+│   └── userStore.ts      # Zustand state for progression, cosmetics, & persistence
+└── proxy.ts              # Next.js Middleware for server-side auth protection
 ```
+## Technical Optimizations
 
-## Routing and Feature Modules
+CodeQuest is aggressively optimized to provide a frictionless, near-instantaneous user experience while keeping cloud resource utilization low.
 
-### Public Routes
-
-- `/`: marketing/landing experience with animated call-to-actions
-- `/login`: email/password sign-in (Supabase or demo fallback)
-- `/signup`: account creation and initial profile setup
-
-### Dashboard Routes
-
-- `/dashboard`: overview (stats, language paths, recommendations)
-- `/dashboard/learn/[language]`: lesson runner and progression flow
-- `/dashboard/quests`: daily quest progression and reward claim
-- `/dashboard/leaderboard`: global XP/streak ranking
-- `/dashboard/profile`: profile, theme/avatar unlocks, session sign-out
-
-### Layout Composition
-
-- `src/app/layout.tsx`: global shell, fonts, metadata, theme sync
-- `src/app/dashboard/layout.tsx`: dashboard shell using `Sidebar`, `Topbar`, `MobileNav`, and `AuthSync`
-
-## Data and State Flow
-
-### Data Fetching
-
-- SWR is used for cache-aware fetches in dashboard and feature pages
-- Each query key maps to a function in `src/lib/dataApi.ts`
-- Supabase queries are normalized to app domain types from `src/lib/types.ts`
-
-### User State and Progression Logic
-
-`src/store/userStore.ts` is the central domain store for:
-- auth flags and identity profile
-- XP, level, coins, streak
-- completed lessons and best scores
-- owned themes/avatars and selected cosmetics
-- daily stats and claimed quests
-
-Persistence strategy:
-- Local persistence via Zustand `persist`
-- Cloud synchronization via `saveToSupabase` and `syncWithSupabase`
-- `AuthSync` subscribes to auth state changes and syncs after sign-in
-
-Lesson completion and unlock model:
-- Lessons scored at or above 60% are counted as completed
-- Repeating a lesson grants reduced rewards
-- Module progression is controlled by prior module completion/scores
-
-### Auth Session Refresh
-
-- `src/proxy.ts` creates a server-side Supabase client and refreshes auth tokens by calling `supabase.auth.getUser()`
-- Cookie propagation is handled through the proxy response
-
-## Database Design (Supabase)
-
-### Core Learning Tables
-
-- `languages`
-- `modules` (belongs to language)
-- `lessons` (belongs to module + language)
-- `questions` (belongs to lesson, question payload in JSONB)
-
-### User and Progress Tables
-
-- `user_profiles` (linked to `auth.users`)
-- `user_progress` (unique by user + lesson)
-
-### Gamification Catalogs
-
-- `themes`
-- `avatars`
-- `daily_quests`
-- `user_themes` (join)
-- `user_avatars` (join)
-
-### Security Model
-
-Row-level security is enabled broadly, with policies that:
-- allow public read for learning/catalog entities
-- allow user-scoped read/write for profile/progress/ownership entities
-- allow public read of `user_profiles` for leaderboard display (migration `0004`)
-
-### Signup Automation
-
-`0003_profile_trigger.sql` adds a trigger on `auth.users` that automatically creates:
-- default `user_profiles` row
-- default ownership rows for theme and avatar
-
-## Libraries and Tooling
-
-### Runtime Dependencies
-
-- `next`: React framework and App Router runtime
-- `react`, `react-dom`: UI runtime
-- `@supabase/ssr`: SSR-aware client construction and cookie plumbing
-- `@supabase/supabase-js`: Supabase data/auth client
-- `swr`: client-side data fetching, cache, and revalidation
-- `zustand`: lightweight app state management
-- `framer-motion`: page and component animations
-- `lucide-react`: icon system
-- `clsx`: conditional className construction helper
-- `tailwind-merge`: Tailwind class conflict resolution helper
-
-### Development Dependencies
-
-- `typescript`: static typing and strict compile-time checks
-- `eslint`, `eslint-config-next`: linting and Next.js rules
-- `tailwindcss`, `@tailwindcss/postcss`: styling engine and PostCSS integration
-- `@types/node`, `@types/react`, `@types/react-dom`: TypeScript type packages
-
-## Environment Variables
-
-Create `.env.local` with:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-# optional alias supported by code:
-# NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
-```
-
-Notes:
-- If variables are missing or URL is placeholder-like, the app operates in demo mode.
-- `NEXT_PUBLIC_DEV_SERVER_START_TIME` is set automatically by `next.config.ts` for dev reset behavior.
-
-## Local Development
-
-1. Install dependencies
-```bash
-npm install
-```
-
-2. Configure environment variables in `.env.local`
-
-3. Ensure Supabase schema/data are applied
-- Execute migration SQL files in order from `supabase/migrations/` against your Supabase project
-- Or use your Supabase CLI workflow if already configured for this repo
-
-4. Start dev server
-```bash
-npm run dev
-```
-
-5. Open app
-- Default local URL: `http://localhost:3000`
-
-## Build, Lint, and Runtime Commands
-
-```bash
-npm run dev    # start development server
-npm run build  # production build
-npm run start  # serve production build
-npm run lint   # run ESLint
-```
-
-## Security and Operational Notes
-
-- RLS is enabled across major tables; policy changes should be versioned via migrations.
-- Leaderboard requires public profile read policy by design.
-- User store writes can happen frequently (`saveToSupabase` on progression/currency updates); consider request batching/debouncing for scale optimization.
-- Development-only `ThemeSync` behavior clears local/session storage when the dev server start timestamp changes, then signs out and reloads. This avoids stale persisted state across restarts.
+*   **Network Debouncing:** Rapid state mutations—such as claiming multiple quests or accumulating lesson XP—are batched and debounced before syncing via `saveToSupabase`. This drastically reduces backend database write operations and prevents rate-limiting.
+*   **Intelligent Client Caching:** Integrated SWR (Stale-While-Revalidate) ensures that data models like catalogs, user profiles, and lesson modules are cached locally and fetched lazily. This allows instant page transitions without blocking the UI rendering thread.
+*   **Supabase Singleton Architecture:** Supabase connections are brokered through a unified `getClient()` singleton pattern, eradicating memory leaks, duplicate WebSocket handshakes, and auth-state race conditions across parallel components.
+*   **Security & Build Integrity:** Lockfiles and dependencies are strictly audited. Overridden transitive dependencies (e.g., forcing `postcss@^8.5.10`) proactively patch build-time XSS vulnerabilities without relying on aggressive auto-fix commands that corrupt dependency trees.
+*   **Dynamically Scaled Economy:** The frontend acts as a smart layer on top of the backend, mapping and recalculating database cosmetic pricing on the fly to perfectly align with the user's average coin acquisition rate—keeping the platform engaging without constant database migrations.

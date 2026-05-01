@@ -1,5 +1,4 @@
 import { Code2, FileCode2, Globe, Terminal } from "lucide-react";
-import { LanguageId } from "@/lib/types";
 
 export const languageUi = {
   python: {
@@ -31,5 +30,3 @@ export const languageUi = {
     glow: "shadow-[0_0_22px_rgba(251,146,60,0.16)]",
   },
 } as const;
-
-export const languageOrder: LanguageId[] = ["python", "c", "cpp", "html"];

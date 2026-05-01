@@ -1,13 +1,5 @@
 import { Language, LanguageId, LeaderboardEntry, Lesson, LearningModule, ThemeCatalogItem, AvatarCatalogItem, DailyQuestTemplate } from "@/lib/types";
-import { createClient } from "@/lib/supabaseClient";
-
-// Use a single shared client instance to prevent auth lock race conditions
-// when multiple SWR fetches fire in parallel on page load.
-let _client: ReturnType<typeof createClient> | null = null;
-function getClient() {
-  if (!_client) _client = createClient();
-  return _client;
-}
+import { getClient } from "@/lib/supabaseClient";
 
 export async function fetchLanguages(): Promise<Language[]> {
   try {
@@ -46,33 +38,6 @@ export async function fetchModulesByLanguage(languageId: LanguageId): Promise<Le
     })) as LearningModule[];
   } catch (error) {
     console.error("Failed to fetch modules for language:", (error as any)?.message || JSON.stringify(error));
-    return [];
-  }
-}
-
-export async function fetchAllModules(): Promise<LearningModule[]> {
-  try {
-    const supabase = getClient();
-    const { data: modules, error: modulesError } = await supabase
-      .from("modules")
-      .select('id, languageId:language_id, title, order, requiredXp:required_xp, difficulty')
-      .order("order", { ascending: true });
-
-    if (modulesError) throw modulesError;
-    if (!modules) return [];
-
-    const { data: lessons, error: lessonsError } = await supabase
-      .from("lessons")
-      .select('id, module_id');
-
-    if (lessonsError) throw lessonsError;
-
-    return modules.map(m => ({
-      ...m,
-      lessonIds: (lessons || []).filter(l => l.module_id === m.id).map(l => l.id)
-    })) as LearningModule[];
-  } catch (error) {
-    console.error("Failed to fetch all modules:", (error as any)?.message || JSON.stringify(error));
     return [];
   }
 }
@@ -213,7 +178,14 @@ export async function fetchThemeCatalog(): Promise<ThemeCatalogItem[]> {
     const supabase = getClient();
     const { data, error } = await supabase.from("themes").select("*");
     if (error) throw error;
-    return (data || []) as ThemeCatalogItem[];
+    
+    // Adjust DB prices dynamically to make them achievable
+    return (data || []).map(theme => {
+      let adjustedCost = theme.cost;
+      if (theme.id === 'solar-flare') adjustedCost = 150;
+      if (theme.id === 'matrix-green') adjustedCost = 300;
+      return { ...theme, cost: adjustedCost };
+    }) as ThemeCatalogItem[];
   } catch (error) {
     console.error("Failed to fetch theme catalog:", (error as any)?.message || JSON.stringify(error));
     return [];
@@ -225,7 +197,14 @@ export async function fetchAvatarCatalog(): Promise<AvatarCatalogItem[]> {
     const supabase = getClient();
     const { data, error } = await supabase.from("avatars").select("*");
     if (error) throw error;
-    return (data || []) as AvatarCatalogItem[];
+    
+    // Adjust DB prices dynamically to make them achievable
+    return (data || []).map(avatar => {
+      let adjustedCost = avatar.cost;
+      if (avatar.id === 'fox-coder' || avatar.id === 'cyber-ninja') adjustedCost = 100;
+      if (avatar.id === 'orb-wizard' || avatar.id === 'holo-wizard') adjustedCost = 250;
+      return { ...avatar, cost: adjustedCost };
+    }) as AvatarCatalogItem[];
   } catch (error) {
     console.error("Failed to fetch avatar catalog:", (error as any)?.message || JSON.stringify(error));
     return [];

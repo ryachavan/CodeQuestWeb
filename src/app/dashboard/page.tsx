@@ -120,13 +120,17 @@ function StatTile({ label, value, accent }: { label: string; value: string; acce
 }
 
 function DailySnapshot() {
-  const { dailyStats, streak } = useUserStore();
+  const { dailyStats, streak, claimedQuestIds } = useUserStore();
   const { data: quests } = useSWR("daily-quests", fetchDailyQuests);
-  const { claimedQuestIds } = useUserStore();
 
   const completedQuestCount = quests
     ? quests.filter((quest) => claimedQuestIds.includes(quest.id)).length
     : 0;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const isToday = dailyStats.date === today;
+  const displayLessons = isToday ? dailyStats.lessonsCompleted : 0;
+  const displayXp = isToday ? dailyStats.xpEarned : 0;
 
   return (
     <article className="glass-panel rounded-2xl p-5 border-slate-700/70">
@@ -135,9 +139,9 @@ function DailySnapshot() {
         <Target size={18} className="accent-text" />
       </div>
       <div className="grid sm:grid-cols-3 gap-3 mb-5">
-        <Metric label="Lessons" value={String(dailyStats.lessonsCompleted)} />
-        <Metric label="XP Earned" value={String(dailyStats.xpEarned)} />
-        <Metric label="Streak" value={`${streak}d`} />
+        <StatTile label="Lessons" value={String(displayLessons)} accent="text-white" />
+        <StatTile label="XP Earned" value={String(displayXp)} accent="text-white" />
+        <StatTile label="Streak" value={`${streak}d`} accent="text-white" />
       </div>
       <p className="text-sm text-slate-300">
         {completedQuestCount > 0
@@ -148,21 +152,13 @@ function DailySnapshot() {
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-slate-700 bg-slate-900/70 p-3">
-      <p className="text-xs text-slate-400 uppercase tracking-[0.14em]">{label}</p>
-      <p className="text-xl font-black text-white mt-1">{value}</p>
-    </div>
-  );
-}
 
 function RecommendedCard() {
   const { completedLessons } = useUserStore();
   const preferredLanguage = "python";
 
   const { data: lesson } = useSWR(
-    ["recommended-lesson", preferredLanguage, completedLessons.join("|")],
+    ["recommended-lesson", preferredLanguage, completedLessons.length],
     () => fetchRecommendedLesson(preferredLanguage, completedLessons),
   );
 

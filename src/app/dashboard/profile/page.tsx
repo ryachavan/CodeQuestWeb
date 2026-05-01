@@ -4,7 +4,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { LogOut, Palette, Sparkles, UserCircle2, Edit2, Check, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabaseClient";
+import { getClient } from "@/lib/supabaseClient";
 import { fetchAvatarCatalog, fetchThemeCatalog } from "@/lib/dataApi";
 import { useUserStore } from "@/store/userStore";
 
@@ -44,7 +44,7 @@ export default function ProfilePage() {
 
   const handleSignOut = async () => {
     try {
-      const supabase = createClient();
+      const supabase = getClient();
       await supabase.auth.signOut();
     } catch (error) {
       console.error("Failed to sign out:", error);

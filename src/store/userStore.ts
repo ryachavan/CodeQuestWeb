@@ -57,6 +57,22 @@ const getDayDiff = (fromDate: string, toDate: string) => {
 
 const calculateLevel = (xp: number) => Math.floor(xp / 250) + 1;
 
+// ---------- Debounce helper for saveToSupabase ----------
+let _saveTimer: ReturnType<typeof setTimeout> | null = null;
+function debouncedSave(saveFn: () => Promise<void>) {
+  if (_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => {
+    _saveTimer = null;
+    saveFn();
+  }, 500);
+}
+
+// ---------- Lazy shared Supabase client for store operations ----------
+async function getStoreClient() {
+  const { getClient } = await import("@/lib/supabaseClient");
+  return getClient();
+}
+
 const getInitialState = () => ({
   id: "demo-user",
   username: "Guest Coder",
@@ -94,7 +110,7 @@ export const useUserStore = create<UserState>()(
         })),
       updateUsername: (username: string) => {
         set(() => ({ username }));
-        get().saveToSupabase();
+        debouncedSave(() => get().saveToSupabase());
       },
       logout: () => set(() => getInitialState()),
       addXp: (amount) => {
@@ -114,13 +130,13 @@ export const useUserStore = create<UserState>()(
                 },
           };
         });
-        get().saveToSupabase();
+        debouncedSave(() => get().saveToSupabase());
       },
       addCoins: (amount) => {
         set((state) => ({
           coins: state.coins + Math.max(0, amount),
         }));
-        get().saveToSupabase();
+        debouncedSave(() => get().saveToSupabase());
       },
       spendCoins: (amount) => {
         const safeAmount = Math.max(0, amount);
@@ -129,7 +145,7 @@ export const useUserStore = create<UserState>()(
           return false;
         }
         set((state) => ({ coins: state.coins - safeAmount }));
-        get().saveToSupabase();
+        debouncedSave(() => get().saveToSupabase());
         return true;
       },
       claimQuest: (questId, rewardXp, rewardCoins) => {
@@ -140,6 +156,8 @@ export const useUserStore = create<UserState>()(
         set((state) => ({
           claimedQuestIds: [...state.claimedQuestIds, questId],
         }));
+        // addXp and addCoins each schedule a debounced save; the debounce
+        // collapses them into a single write.
         get().addXp(rewardXp);
         get().addCoins(rewardCoins);
         return true;
@@ -195,27 +213,22 @@ export const useUserStore = create<UserState>()(
                 },
           };
         });
-        get().saveToSupabase();
+        debouncedSave(() => get().saveToSupabase());
 
         const state = get();
         if (state.isAuthenticated && state.id !== "demo-user") {
           const passed = safeScore >= 60;
           if (passed) {
-            import("@/lib/supabaseClient").then(({ createClient }) => {
-              try {
-                const supabase = createClient();
-                supabase.from("user_progress").upsert({ 
-                  user_id: state.id, 
-                  lesson_id: lessonId 
-                }, { onConflict: 'user_id, lesson_id' }).then(({ error }) => {
-                  if (error) {
-                    console.error("Failed to save lesson progress:", error);
-                  }
-                });
-              } catch (error) {
-                console.error("Failed to update user progress:", error);
-              }
-            }).catch(err => console.error("Failed to import Supabase client:", err));
+            getStoreClient().then((supabase) => {
+              supabase.from("user_progress").upsert({ 
+                user_id: state.id, 
+                lesson_id: lessonId 
+              }, { onConflict: 'user_id, lesson_id' }).then(({ error }) => {
+                if (error) {
+                  console.error("Failed to save lesson progress:", error);
+                }
+              });
+            }).catch(err => console.error("Failed to save user progress:", err));
           }
         }
       },
@@ -223,7 +236,7 @@ export const useUserStore = create<UserState>()(
         set((state) => ({
           selectedTheme: state.ownedThemes.includes(themeId) ? themeId : state.selectedTheme,
         }));
-        get().saveToSupabase();
+        debouncedSave(() => get().saveToSupabase());
       },
       unlockTheme: (themeId, cost) => {
         const state = get();
@@ -244,20 +257,15 @@ export const useUserStore = create<UserState>()(
         
         // Persist to user_themes
         if (state.isAuthenticated && state.id !== "demo-user") {
-          import("@/lib/supabaseClient").then(({ createClient }) => {
-            try {
-              const supabase = createClient();
-              supabase.from("user_themes").insert({ user_id: state.id, theme_id: themeId }).then(({ error }) => {
-                if (error) {
-                  console.error("Failed to unlock theme:", error);
-                } else {
-                  get().saveToSupabase();
-                }
-              });
-            } catch (error) {
-              console.error("Failed to save theme unlock:", error);
-            }
-          }).catch(err => console.error("Failed to import Supabase client:", err));
+          getStoreClient().then((supabase) => {
+            supabase.from("user_themes").insert({ user_id: state.id, theme_id: themeId }).then(({ error }) => {
+              if (error) {
+                console.error("Failed to unlock theme:", error);
+              } else {
+                debouncedSave(() => get().saveToSupabase());
+              }
+            });
+          }).catch(err => console.error("Failed to save theme unlock:", err));
         }
 
         return true;
@@ -268,7 +276,7 @@ export const useUserStore = create<UserState>()(
             ? avatarId
             : state.selectedAvatar,
         }));
-        get().saveToSupabase();
+        debouncedSave(() => get().saveToSupabase());
       },
       unlockAvatar: (avatarId, cost) => {
         const state = get();
@@ -289,28 +297,22 @@ export const useUserStore = create<UserState>()(
 
         // Persist to user_avatars
         if (state.isAuthenticated && state.id !== "demo-user") {
-          import("@/lib/supabaseClient").then(({ createClient }) => {
-            try {
-              const supabase = createClient();
-              supabase.from("user_avatars").insert({ user_id: state.id, avatar_id: avatarId }).then(({ error }) => {
-                if (error) {
-                  console.error("Failed to unlock avatar:", error);
-                } else {
-                  get().saveToSupabase();
-                }
-              });
-            } catch (error) {
-              console.error("Failed to save avatar unlock:", error);
-            }
-          }).catch(err => console.error("Failed to import Supabase client:", err));
+          getStoreClient().then((supabase) => {
+            supabase.from("user_avatars").insert({ user_id: state.id, avatar_id: avatarId }).then(({ error }) => {
+              if (error) {
+                console.error("Failed to unlock avatar:", error);
+              } else {
+                debouncedSave(() => get().saveToSupabase());
+              }
+            });
+          }).catch(err => console.error("Failed to save avatar unlock:", err));
         }
 
         return true;
       },
       syncWithSupabase: async () => {
         try {
-          const { createClient } = await import("@/lib/supabaseClient");
-          const supabase = await createClient();
+          const supabase = await getStoreClient();
           const { data: { user }, error: userError } = await supabase.auth.getUser();
           
           if (userError) throw userError;
@@ -325,9 +327,15 @@ export const useUserStore = create<UserState>()(
           if (profileError && profileError.code !== 'PGRST116') throw profileError;
 
           if (profile) {
-            const { data: themes, error: themesError } = await supabase.from("user_themes").select("theme_id").eq("user_id", user.id);
-            const { data: avatars, error: avatarsError } = await supabase.from("user_avatars").select("avatar_id").eq("user_id", user.id);
-            const { data: progress, error: progressError } = await supabase.from("user_progress").select("lesson_id").eq("user_id", user.id);
+            const [
+              { data: themes, error: themesError },
+              { data: avatars, error: avatarsError },
+              { data: progress, error: progressError },
+            ] = await Promise.all([
+              supabase.from("user_themes").select("theme_id").eq("user_id", user.id),
+              supabase.from("user_avatars").select("avatar_id").eq("user_id", user.id),
+              supabase.from("user_progress").select("lesson_id").eq("user_id", user.id),
+            ]);
             
             if (themesError) throw themesError;
             if (avatarsError) throw avatarsError;
@@ -363,8 +371,7 @@ export const useUserStore = create<UserState>()(
           const state = get();
           if (!state.isAuthenticated || state.id === "demo-user") return;
 
-          const { createClient } = await import("@/lib/supabaseClient");
-          const supabase = await createClient();
+          const supabase = await getStoreClient();
           
           const { error } = await supabase.from("user_profiles").update({
             username: state.username,
@@ -384,25 +391,13 @@ export const useUserStore = create<UserState>()(
     }),
     {
       name: "codequest-user-store",
-      partialize: (state) => ({
-        id: state.id,
-        username: state.username,
-        email: state.email,
-        isAuthenticated: state.isAuthenticated,
-        xp: state.xp,
-        coins: state.coins,
-        streak: state.streak,
-        level: state.level,
-        selectedTheme: state.selectedTheme,
-        ownedThemes: state.ownedThemes,
-        selectedAvatar: state.selectedAvatar,
-        ownedAvatars: state.ownedAvatars,
-        completedLessons: state.completedLessons,
-        lessonScores: state.lessonScores,
-        claimedQuestIds: state.claimedQuestIds,
-        lastActivity: state.lastActivity,
-        dailyStats: state.dailyStats,
-      }),
+      partialize: (state) => {
+        // Persist everything except action functions
+        const { login, updateUsername, logout, addXp, addCoins, spendCoins,
+          claimQuest, completeLesson, setTheme, unlockTheme, setAvatar,
+          unlockAvatar, syncWithSupabase, saveToSupabase, ...data } = state;
+        return data;
+      },
     },
   ),
 );

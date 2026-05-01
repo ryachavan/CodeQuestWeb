@@ -4,7 +4,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Lock } from "lucide-react";
-import { hasSupabaseConfig, supabase } from "@/lib/supabaseClient";
+import { hasSupabaseConfig, getClient } from "@/lib/supabaseClient";
 import { useUserStore } from "@/store/userStore";
 
 export default function SignupPage() {
@@ -34,7 +34,8 @@ export default function SignupPage() {
         throw new Error("Please enter a username");
       }
 
-      if (supabase) {
+      if (hasSupabaseConfig) {
+        const supabase = getClient();
         const { data, error } = await supabase.auth.signUp({ 
           email, 
           password,

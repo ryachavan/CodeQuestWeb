@@ -10,11 +10,13 @@ export function createClient() {
   );
 }
 
-// Global instance for simple usages when not worried about SSR request pollution
-// Note: Next.js App Router encourages per-request clients in server contexts.
-export const supabase = supabaseUrl && supabaseAnonKey && supabaseUrl !== 'your-supabase-url'
-  ? createClient() 
-  : null;
+// Shared singleton – avoids auth lock race conditions when multiple callers
+// fire in parallel. Lazily initialised on first call.
+let _sharedClient: ReturnType<typeof createClient> | null = null;
+export function getClient() {
+  if (!_sharedClient) _sharedClient = createClient();
+  return _sharedClient;
+}
 
 export const hasSupabaseConfig = Boolean(
   supabaseUrl && supabaseAnonKey && supabaseUrl !== 'your-supabase-url'

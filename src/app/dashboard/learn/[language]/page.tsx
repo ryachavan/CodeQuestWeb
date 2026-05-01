@@ -31,6 +31,28 @@ type AnswerState = {
 
 const defaultLanguage: LanguageId = "python";
 
+/** Compute which modules are unlocked based on lesson scores and completion. */
+function getUnlockedModuleIds(
+  sortedModules: LearningModule[],
+  completedLessons: string[],
+  lessonScores?: Record<string, number>,
+): string[] {
+  if (!sortedModules.length) return [];
+  const unlocked: string[] = [sortedModules[0].id];
+  for (let i = 1; i < sortedModules.length; i++) {
+    const prev = sortedModules[i - 1];
+    const prevPassed = prev.lessonIds.some(
+      (lid) => (lessonScores ? (lessonScores[lid] ?? 0) >= 60 : false) || completedLessons.includes(lid),
+    );
+    if (prevPassed) {
+      unlocked.push(sortedModules[i].id);
+    } else {
+      break;
+    }
+  }
+  return unlocked;
+}
+
 export default function LessonPage() {
   const params = useParams<{ language: string }>();
   const searchParams = useSearchParams();
@@ -56,23 +78,10 @@ export default function LessonPage() {
   );
 
   // A module unlocks when the PREVIOUS module has at least one lesson scored >= 60% (3/5).
-  const unlockedModuleIds = useMemo(() => {
-    const sortedModules = modules ?? [];
-    if (!sortedModules.length) return [];
-    const unlocked: string[] = [sortedModules[0].id]; // first module always open
-    for (let i = 1; i < sortedModules.length; i++) {
-      const prev = sortedModules[i - 1];
-      const prevPassed = prev.lessonIds.some(
-        (lid) => (lessonScores[lid] ?? 0) >= 60 || liveCompletedLessons.includes(lid),
-      );
-      if (prevPassed) {
-        unlocked.push(sortedModules[i].id);
-      } else {
-        break;
-      }
-    }
-    return unlocked;
-  }, [modules, lessonScores, liveCompletedLessons]);
+  const unlockedModuleIds = useMemo(
+    () => getUnlockedModuleIds(modules ?? [], liveCompletedLessons, lessonScores),
+    [modules, lessonScores, liveCompletedLessons],
+  );
 
   const lesson = useMemo(() => {
     if (!lessons?.length) {
@@ -164,17 +173,10 @@ function LessonRunner({
   const lessonScores = useUserStore((state) => state.lessonScores);
   const completedLessonsStore = useUserStore((state) => state.completedLessons);
 
-  const internalUnlockedIds = useMemo(() => {
-    if (!allModules.length) return [];
-    const unlocked: string[] = [allModules[0].id];
-    for (let i = 1; i < allModules.length; i++) {
-      const prev = allModules[i - 1];
-      const passed = prev.lessonIds.some((lid) => completedLessonsStore.includes(lid));
-      if (passed) unlocked.push(allModules[i].id);
-      else break;
-    }
-    return unlocked;
-  }, [allModules, completedLessonsStore]);
+  const internalUnlockedIds = useMemo(
+    () => getUnlockedModuleIds(allModules, completedLessonsStore),
+    [allModules, completedLessonsStore],
+  );
 
   const nextLesson = useMemo(() => {
     if (!allLessons.length || !allModules.length) return null;

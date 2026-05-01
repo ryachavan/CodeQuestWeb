@@ -3,8 +3,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Code2, Mail, Lock } from "lucide-react";
-import { hasSupabaseConfig, supabase } from "@/lib/supabaseClient";
+import { hasSupabaseConfig, getClient } from "@/lib/supabaseClient";
 import { useUserStore } from "@/store/userStore";
 
 export default function LoginPage() {
@@ -37,7 +36,8 @@ export default function LoginPage() {
         throw new Error("Password must be at least 6 characters");
       }
 
-      if (supabase) {
+      if (hasSupabaseConfig) {
+        const supabase = getClient();
         const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
           if (error.message.includes("Invalid login credentials")) {
