@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { BookOpen, Trophy, User, Zap } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useUserStore } from "@/store/userStore";
@@ -19,9 +20,7 @@ export default function Sidebar() {
   return (
     <aside className="hidden md:flex flex-col w-64 glass-panel border-r border-slate-700/70 h-screen fixed top-0 left-0 p-4">
       <div className="flex items-center gap-3 mb-8 px-2">
-        <div className="w-8 h-8 rounded accent-bg accent-text flex items-center justify-center font-black">
-          C
-        </div>
+        <Image src="/favicon.png" alt="CodeQuest Logo" width={32} height={32} className="rounded" style={{ width: 'auto', height: 'auto' }} />
         <h1 className="text-xl font-black text-white tracking-wide">CodeQuest</h1>
       </div>
 

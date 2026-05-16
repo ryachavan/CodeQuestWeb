@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowRight, Sparkles, Swords, Trophy, User } from "lucide-react";
 import { useUserStore } from "@/store/userStore";
@@ -42,9 +43,7 @@ export default function Home() {
       {/* Navbar */}
       <header className="relative z-50 max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center p-1.5">
-            <Sparkles className="text-white h-full w-full" />
-          </div>
+          <Image src="/favicon.png" alt="CodeQuest Logo" width={32} height={32} className="rounded-lg" style={{ width: 'auto', height: 'auto' }} />
           <span className="text-xl font-black text-white tracking-tighter">CodeQuest</span>
         </div>
         

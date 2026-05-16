@@ -16,6 +16,9 @@ const codeFont = Fira_Code({
 export const metadata: Metadata = {
   title: "CodeQuest - The Gamified Coding Platform",
   description: "Learn C, C++, Python, and HTML through bite-sized, gamified lessons.",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
